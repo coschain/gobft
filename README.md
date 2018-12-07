@@ -22,7 +22,7 @@ goBFT is a BFT library written in go. It's a re-implementation of tendermint bft
 ## Note
 * Proposer is decoupled from the goBFT library so that the user has control of when
   and what to propose. User has to implement the `Proposer` interface.
-* `Commiter` interface has to be implemented by user to specify the actions taken when validators
+* `Committer` interface has to be implemented by user to specify the actions taken when validators
   reaches consensus about a certain `Proposal`.
 
 # Data flow and state transition
