@@ -26,4 +26,4 @@ goBFT is a BFT library written in go. It's a re-implementation of tendermint bft
   reaches consensus about a certain `Proposal`.
 
 # Data flow and state transition
-![cmd-markdown-logo](resource/goBFT-dataflow.png)
+![cmd-markdown-logo](resource/goBFT-dataflow.jpeg)
