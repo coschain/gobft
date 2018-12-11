@@ -1,5 +1,5 @@
-# goBFT
-goBFT is a BFT library written in go. It's a re-implementation of tendermint bft.
+# go-bft
+go-bft is a BFT library written in go. It's a re-implementation of tendermint bft.
 ![cmd-markdown-logo](resource/tmbft.jpeg)
 
 # Terminology
@@ -17,13 +17,53 @@ goBFT is a BFT library written in go. It's a re-implementation of tendermint bft
 * 2/3 Any: more than 2/3 of all the validators broadcast their votes, yet no proposal
   reached +2/3 (i.e. the validators voted for different proposals)
   
+  A validator is a node in a distributed system that participates in the
+  bft consensus process. It proposes and votes for a certain proposal.
+  Each validator should maintain a set of all the PubValidators so that
+  it can verifies messages sent by other validators. Each validator should
+  have exactly one PrivValidator which contains its private key so that
+  it can sign a message. A validator can be a proposer, the rules of which
+  validator becomes a valid proposer at a certain time is totally decided by user.
+  
   To get more details of POL, please refer to [tendermint.pdf](https://allquantor.at/blockchainbib/pdf/buchman2016tendermint.pdf) chapter 3
 
 ## Note
-* Proposer is decoupled from the goBFT library so that the user has control of when
+* Proposer is decoupled from the go-bft library so that the user has complete control of when
   and what to propose. User has to implement the `Proposer` interface.
 * `Committer` interface has to be implemented by user to specify the actions taken when validators
   reaches consensus about a certain `Proposal`.
+* `PubValidator` and `PrivValidator` interface provides a abstract access of user-defined
+  signature type(e.g. ecc or rsa)
+  
+ In a nutshell, user should implement the following interface:
+ ```go
+// Proposer stages a candidate data so that other validators can vote for it
+type Proposer interface {
+	GetCurrentProposer()
+	Propose() (*message.Proposal, error)
+	// Each Validator will vote for the POLed proposal if there's any. Otherwise it
+	// votes for the first proposal it sees in default unless user explicitly calls
+	// BoundVotedData(data), in which case it votes for the bounded data.
+	BoundVotedData(data []byte)
+}
+
+// PubValidator verifies if a message is properly signed by the right validator
+type PubValidator interface {
+	VerifySig(digest, signature []byte) bool
+	GetPubKey() PubKey
+}
+
+// PrivValidator signs a message
+type PrivValidator interface {
+	GetPubKeyBytes() PubKey
+	Sign(digest []byte) []byte
+}
+
+// Committer defines the actions the users taken when consensus is reached
+type Committer interface {
+
+}
+```
 
 # Data flow and state transition
 ![cmd-markdown-logo](resource/goBFT-dataflow.jpeg)
