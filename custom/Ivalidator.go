@@ -42,5 +42,5 @@ type PrivValidator interface {
 
 // Committer defines the actions the users taken when consensus is reached
 type Committer interface {
-
+	Commit(p *message.Proposal) error
 }
