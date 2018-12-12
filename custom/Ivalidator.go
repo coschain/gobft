@@ -15,32 +15,37 @@ import (
  * user.
  */
 
-// PubKey is binary representation of the public key
-type PubKey []byte
-
 // Proposer stages a candidate data so that other validators can vote for it
 type Proposer interface {
 	GetCurrentProposer()
-	Propose() (*message.Proposal, error)
+	Propose() (*message.Vote, error)
 	// Each Validator will vote for the POLed proposal if there's any. Otherwise it
 	// votes for the first proposal it sees in default unless user explicitly calls
 	// BoundVotedData(data), in which case it votes for the bounded data.
 	BoundVotedData(data []byte)
 }
 
+type Validators interface {
+	SetValidators(vals []PubValidator)
+	GetValidator(key message.PubKey) PubValidator
+	TotalVotingPower() int64
+}
+
 // PubValidator verifies if a message is properly signed by the right validator
 type PubValidator interface {
 	VerifySig(digest, signature []byte) bool
-	GetPubKey() PubKey
+	GetPubKey() message.PubKey
+	GetVotingPower() int64
+	SetVotingPower(int64)
 }
 
 // PrivValidator signs a message
 type PrivValidator interface {
-	GetPubKeyBytes() PubKey
+	GetPubKeyBytes() message.PubKey
 	Sign(digest []byte) []byte
 }
 
 // Committer defines the actions the users taken when consensus is reached
 type Committer interface {
-	Commit(p *message.Proposal) error
+	Commit(p *message.Vote) error
 }
