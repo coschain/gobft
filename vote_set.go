@@ -6,9 +6,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/coschain/go-bft/common"
 	"github.com/coschain/go-bft/message"
 	"github.com/pkg/errors"
-	cmn "github.com/tendermint/tendermint/libs/common"
 )
 
 /*
@@ -37,7 +37,7 @@ type VoteSet struct {
 // Constructs a new VoteSet struct used to accumulate votes for given height/round.
 func NewVoteSet(height int64, round int, type_ message.VoteType, valSet *Validators) *VoteSet {
 	if height == 0 {
-		cmn.PanicSanity("Cannot make VoteSet for height == 0, doesn't make sense.")
+		common.PanicSanity("Cannot make VoteSet for height == 0, doesn't make sense.")
 	}
 	return &VoteSet{
 		height:              height,
@@ -88,7 +88,7 @@ func (voteSet *VoteSet) Type() byte {
 // NOTE: Vote must not be nil
 func (voteSet *VoteSet) AddVote(vote *message.Vote) (added bool, err error) {
 	if voteSet == nil {
-		cmn.PanicSanity("AddVote() on nil VoteSet")
+		common.PanicSanity("AddVote() on nil VoteSet")
 	}
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
@@ -132,7 +132,7 @@ func (voteSet *VoteSet) addVote(vote *message.Vote) (added bool, err error) {
 		return added, NewConflictingVoteError()
 	}
 	if !added {
-		cmn.PanicSanity("Expected to add non-conflicting vote")
+		common.PanicSanity("Expected to add non-conflicting vote")
 	}
 	return added, nil
 }
