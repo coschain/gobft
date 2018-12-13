@@ -45,7 +45,7 @@ func decodeMsg(bz []byte) (msg ConsensusMessage, err error) {
 // cdcEncode returns nil if the input is nil, otherwise returns
 // cdc.MustMarshalBinaryBare(item)
 func cdcEncode(item interface{}) []byte {
-	if item != nil && !common.IsTypedNil(item) && !commons.IsEmpty(item) {
+	if item != nil && !common.IsTypedNil(item) && !common.IsEmpty(item) {
 		return cdc.MustMarshalBinaryBare(item)
 	}
 	return nil

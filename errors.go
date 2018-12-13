@@ -1,8 +1,6 @@
 package go_bft
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 )
 
@@ -21,7 +19,8 @@ type ErrVoteConflictingVotes struct {
 }
 
 func (err *ErrVoteConflictingVotes) Error() string {
-	return fmt.Sprintf("Conflicting votes from validator %v", err.PubKey.Address())
+	//return fmt.Sprintf("Conflicting votes from validator %v", err.PubKey.Address())
+	return ""
 }
 
 func NewConflictingVoteError( /*val *Validator, voteA, voteB *Vote*/ ) *ErrVoteConflictingVotes {

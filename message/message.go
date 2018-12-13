@@ -13,9 +13,9 @@ import (
 // PubKey is string representation of the public key
 type PubKey string
 
-type ProposedData [256]byte
+type ProposedData [32]byte
 
-var NilData [256]byte
+var NilData [32]byte
 
 func (pd ProposedData) IsNil() bool {
 	return pd == NilData
