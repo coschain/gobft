@@ -48,10 +48,18 @@ func TestValidatorsVotes(t *testing.T) {
 	privVal1 := custom.NewMockIPrivValidator(ctrl)
 	privVal1.EXPECT().GetPubKey().Return(pubkey1).AnyTimes()
 	privVal1.EXPECT().Sign([]byte("digest1")).Return([]byte("signature1")).AnyTimes()
+	privVal1.EXPECT().Sign(gomock.Any()).DoAndReturn(func(digest []byte) []byte {
+		return digest
+	}).AnyTimes()
 
 	assert := assert.New(t)
 	sig1 := privVal1.Sign([]byte("digest1"))
 	assert.True(val1.VerifySig([]byte("digest1"), sig1))
+
+	val1.EXPECT().VerifySig(gomock.Any(), gomock.Any()).Return(true).AnyTimes()
+	val2.EXPECT().VerifySig(gomock.Any(), gomock.Any()).Return(true).AnyTimes()
+	val3.EXPECT().VerifySig(gomock.Any(), gomock.Any()).Return(true).AnyTimes()
+	val4.EXPECT().VerifySig(gomock.Any(), gomock.Any()).Return(true).AnyTimes()
 
 	// init IValidators
 	curProposers := []*custom.MockIPubValidator{val1, val2, val3, val4}
@@ -60,7 +68,10 @@ func TestValidatorsVotes(t *testing.T) {
 
 	valSet := custom.NewMockIValidators(ctrl)
 	valSet.EXPECT().GetValidator(pubkey1).Return(val1).AnyTimes()
-	valSet.EXPECT().IsValidator(pubkey1).Return(true).AnyTimes()
+	valSet.EXPECT().GetValidator(pubkey2).Return(val2).AnyTimes()
+	valSet.EXPECT().GetValidator(pubkey3).Return(val3).AnyTimes()
+	valSet.EXPECT().GetValidator(pubkey4).Return(val1).AnyTimes()
+	valSet.EXPECT().IsValidator(gomock.Any()).Return(true).AnyTimes()
 	valSet.EXPECT().TotalVotingPower().Return(int64(4)).AnyTimes()
 	valSet.EXPECT().GetCurrentProposer().DoAndReturn(func() *custom.MockIPubValidator {
 		defer func() { idx = (idx + 1) % 4 }()
@@ -74,7 +85,30 @@ func TestValidatorsVotes(t *testing.T) {
 	assert.Equal(val1, valSet.GetCurrentProposer())
 	assert.Equal(proposedData, valSet.DecidesProposal())
 
-	//vs := NewValidators(valSet)
-	//vs.UpdateValidators(1, valSet)
-	//hvSet := NewHeightVoteSet(1, vs)
+	vs := NewValidators(valSet, privVal1)
+	hvSet1 := NewHeightVoteSet(1, vs)
+
+	// sign votes
+	prevote1_1 := message.NewVote(message.PrevoteType, 1, 0, &proposedData)
+	vs.Sign(prevote1_1)
+	prevote1_2 := message.NewVote(message.PrevoteType, 1, 0, &proposedData)
+	prevote1_2.Address = pubkey2
+	prevote1_2.Signature = []byte(pubkey2)
+	prevote1_3 := message.NewVote(message.PrevoteType, 1, 0, &proposedData)
+	prevote1_3.Address = pubkey3
+	prevote1_3.Signature = []byte(pubkey3)
+	prevote1_4 := message.NewVote(message.PrevoteType, 1, 0, &proposedData)
+	prevote1_4.Address = pubkey4
+	prevote1_4.Signature = []byte(pubkey4)
+
+	hvSet1.AddVote(prevote1_1)
+	hvSet1.AddVote(prevote1_2)
+	data, ok := hvSet1.Prevotes(0).TwoThirdsMajority()
+
+	assert.False(ok)
+	assert.Equal(data, message.NilData)
+	hvSet1.AddVote(prevote1_3)
+	data, ok = hvSet1.Prevotes(0).TwoThirdsMajority()
+	assert.True(ok)
+	assert.Equal(data, proposedData)
 }

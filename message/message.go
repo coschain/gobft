@@ -15,7 +15,7 @@ type PubKey string
 
 type ProposedData [32]byte
 
-var NilData [32]byte
+var NilData ProposedData
 
 func (pd ProposedData) IsNil() bool {
 	return pd == NilData
@@ -99,11 +99,12 @@ func (vote *Vote) String() string {
 		common.PanicSanity("Unknown vote type")
 	}
 
-	return fmt.Sprintf("Vote{%v/%02d/%v(%v) %X %X @ %v}",
+	return fmt.Sprintf("Vote{%v/%02d/%v(%v) %s %X %X @ %v}",
 		vote.Height,
 		vote.Round,
 		vote.Type,
 		typeString,
+		vote.Address,
 		common.Fingerprint(vote.Proposed[:]),
 		common.Fingerprint(vote.Signature),
 		vote.Timestamp,

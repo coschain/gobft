@@ -10,22 +10,22 @@ import (
 type Validators struct {
 	sync.RWMutex
 	height int64 // current height
-	Vals   custom.IValidators
+
+	Vals    custom.IValidators
+	privVal custom.IPrivValidator
 }
 
-func NewValidators(val custom.IValidators) *Validators {
+func NewValidators(val custom.IValidators, pVal custom.IPrivValidator) *Validators {
 	v := &Validators{
-		Vals: val,
+		Vals:    val,
+		privVal: pVal,
 	}
 	return v
 }
 
-func (v *Validators) UpdateValidators(h int64, vals custom.IValidators) {
-	v.Lock()
-	defer v.Unlock()
-
-	v.Vals = vals
-	v.height = h
+func (v *Validators) Sign(vote *message.Vote) {
+	vote.Address = v.privVal.GetPubKey()
+	vote.Signature = v.privVal.Sign(vote.Digest())
 }
 
 func (v *Validators) VerifySignature(vote *message.Vote) bool {
