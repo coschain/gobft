@@ -15,37 +15,44 @@ import (
  * user.
  */
 
-// Proposer stages a candidate data so that other validators can vote for it
-type Proposer interface {
-	GetCurrentProposer()
-	Propose() (*message.Vote, error)
+// IProposer decides which validator is the current proposer and illustrates
+// what should be proposed if node is the current proposer
+type IProposer interface {
+	GetCurrentProposer() IPubValidator
+	DecidesProposal() message.ProposedData
 	// Each Validator will vote for the POLed proposal if there's any. Otherwise it
 	// votes for the first proposal it sees in default unless user explicitly calls
 	// BoundVotedData(data), in which case it votes for the bounded data.
-	BoundVotedData(data []byte)
+	//BoundVotedData(data []byte)
 }
 
-type Validators interface {
-	SetValidators(vals []PubValidator)
-	GetValidator(key message.PubKey) PubValidator
+// IValidators represents a validator group which contains all validators at
+// a certain height. User should typically create a new IValidators and register
+// it to the bft core before starting a new height consensus process if
+// validators need to be updated
+type IValidators interface {
+	GetValidator(key message.PubKey) IPubValidator
+	IsValidator(key message.PubKey) bool
 	TotalVotingPower() int64
+
+	IProposer
 }
 
-// PubValidator verifies if a message is properly signed by the right validator
-type PubValidator interface {
+// IPubValidator verifies if a message is properly signed by the right validator
+type IPubValidator interface {
 	VerifySig(digest, signature []byte) bool
 	GetPubKey() message.PubKey
 	GetVotingPower() int64
 	SetVotingPower(int64)
 }
 
-// PrivValidator signs a message
-type PrivValidator interface {
-	GetPubKeyBytes() message.PubKey
+// IPrivValidator signs a message
+type IPrivValidator interface {
+	GetPubKey() message.PubKey
 	Sign(digest []byte) []byte
 }
 
 // Committer defines the actions the users taken when consensus is reached
-type Committer interface {
-	Commit(p *message.Vote) error
+type ICommitter interface {
+	Commit(p message.ProposedData) error
 }

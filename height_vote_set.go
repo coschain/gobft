@@ -6,9 +6,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/coschain/go-bft/message"
-
 	"github.com/coschain/go-bft/common"
+	"github.com/coschain/go-bft/message"
 )
 
 type RoundVoteSet struct {
