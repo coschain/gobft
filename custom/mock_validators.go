@@ -10,57 +10,6 @@ import (
 	reflect "reflect"
 )
 
-// MockIProposer is a mock of IProposer interface
-type MockIProposer struct {
-	ctrl     *gomock.Controller
-	recorder *MockIProposerMockRecorder
-}
-
-// MockIProposerMockRecorder is the mock recorder for MockIProposer
-type MockIProposerMockRecorder struct {
-	mock *MockIProposer
-}
-
-// NewMockIProposer creates a new mock instance
-func NewMockIProposer(ctrl *gomock.Controller) *MockIProposer {
-	mock := &MockIProposer{ctrl: ctrl}
-	mock.recorder = &MockIProposerMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use
-func (m *MockIProposer) EXPECT() *MockIProposerMockRecorder {
-	return m.recorder
-}
-
-// GetCurrentProposer mocks base method
-func (m *MockIProposer) GetCurrentProposer() IPubValidator {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetCurrentProposer")
-	ret0, _ := ret[0].(IPubValidator)
-	return ret0
-}
-
-// GetCurrentProposer indicates an expected call of GetCurrentProposer
-func (mr *MockIProposerMockRecorder) GetCurrentProposer() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCurrentProposer", reflect.TypeOf((*MockIProposer)(nil).GetCurrentProposer))
-}
-
-// DecidesProposal mocks base method
-func (m *MockIProposer) DecidesProposal() message.ProposedData {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DecidesProposal")
-	ret0, _ := ret[0].(message.ProposedData)
-	return ret0
-}
-
-// DecidesProposal indicates an expected call of DecidesProposal
-func (mr *MockIProposerMockRecorder) DecidesProposal() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DecidesProposal", reflect.TypeOf((*MockIProposer)(nil).DecidesProposal))
-}
-
 // MockIValidators is a mock of IValidators interface
 type MockIValidators struct {
 	ctrl     *gomock.Controller
@@ -152,6 +101,20 @@ func (m *MockIValidators) DecidesProposal() message.ProposedData {
 func (mr *MockIValidatorsMockRecorder) DecidesProposal() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DecidesProposal", reflect.TypeOf((*MockIValidators)(nil).DecidesProposal))
+}
+
+// Commit mocks base method
+func (m *MockIValidators) Commit(p message.ProposedData) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Commit", p)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Commit indicates an expected call of Commit
+func (mr *MockIValidatorsMockRecorder) Commit(p interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockIValidators)(nil).Commit), p)
 }
 
 // MockIPubValidator is a mock of IPubValidator interface
@@ -280,41 +243,4 @@ func (m *MockIPrivValidator) Sign(digest []byte) []byte {
 func (mr *MockIPrivValidatorMockRecorder) Sign(digest interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Sign", reflect.TypeOf((*MockIPrivValidator)(nil).Sign), digest)
-}
-
-// MockICommitter is a mock of ICommitter interface
-type MockICommitter struct {
-	ctrl     *gomock.Controller
-	recorder *MockICommitterMockRecorder
-}
-
-// MockICommitterMockRecorder is the mock recorder for MockICommitter
-type MockICommitterMockRecorder struct {
-	mock *MockICommitter
-}
-
-// NewMockICommitter creates a new mock instance
-func NewMockICommitter(ctrl *gomock.Controller) *MockICommitter {
-	mock := &MockICommitter{ctrl: ctrl}
-	mock.recorder = &MockICommitterMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use
-func (m *MockICommitter) EXPECT() *MockICommitterMockRecorder {
-	return m.recorder
-}
-
-// Commit mocks base method
-func (m *MockICommitter) Commit(p message.ProposedData) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Commit", p)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Commit indicates an expected call of Commit
-func (mr *MockICommitterMockRecorder) Commit(p interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockICommitter)(nil).Commit), p)
 }

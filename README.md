@@ -28,22 +28,11 @@ go-bft is a BFT library written in go. It's a re-implementation of tendermint bf
   To get more details of POL, please refer to [tendermint.pdf](https://allquantor.at/blockchainbib/pdf/buchman2016tendermint.pdf) chapter 3
 
 ## Note
-* Proposer is decoupled from the go-bft library so that the user has complete control of when
-  and what to propose. User has to implement the `Proposer` interface.
-* `Committer` interface has to be implemented by user to specify the actions taken when validators
-  reaches consensus about a certain `Proposal`.
-* `PubValidator` and `PrivValidator` interface provides a abstract access of user-defined
+`IPubValidator` and `IPrivValidator` interface provides a abstract access of user-defined
   signature type(e.g. ecc or rsa)
   
  In a nutshell, user should implement the following interface:
  ```go
-// IProposer decides which validator is the current proposer and illustrates
-// what should be proposed if node is the current proposer
-type IProposer interface {
-	GetCurrentProposer() IPubValidator
-	DecidesProposal() message.ProposedData
-}
-
 // IValidators represents a validator group which contains all validators at
 // a certain height. User should typically create a new IValidators and register
 // it to the bft core before starting a new height consensus process if
@@ -53,7 +42,12 @@ type IValidators interface {
 	IsValidator(key message.PubKey) bool
 	TotalVotingPower() int64
 
-	IProposer
+	GetCurrentProposer() IPubValidator
+	// DecidesProposal decides what will be proposed if this node is the current proposer
+	DecidesProposal() message.ProposedData
+
+	// Commit defines the actions the users taken when consensus is reached
+	Commit(p message.ProposedData) error
 }
 
 // IPubValidator verifies if a message is properly signed by the right validator
@@ -68,11 +62,6 @@ type IPubValidator interface {
 type IPrivValidator interface {
 	GetPubKey() message.PubKey
 	Sign(digest []byte) []byte
-}
-
-// Committer defines the actions the users taken when consensus is reached
-type ICommitter interface {
-	Commit(p message.ProposedData) error
 }
 ```
 
