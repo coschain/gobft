@@ -14,6 +14,13 @@ var (
 	ErrVoteNil                       = errors.New("Nil vote")
 )
 
+var (
+	ErrInvalidProposalSignature = errors.New("Error invalid proposal signature")
+	ErrInvalidProposalPOLRound  = errors.New("Error invalid proposal POL round")
+	ErrAddingVote               = errors.New("Error adding vote")
+	ErrVoteHeightMismatch       = errors.New("Error vote height mismatch")
+)
+
 type ErrVoteConflictingVotes struct {
 	//*DuplicateVoteEvidence
 }

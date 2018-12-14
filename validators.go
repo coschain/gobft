@@ -5,20 +5,21 @@ import (
 
 	"github.com/coschain/go-bft/custom"
 	"github.com/coschain/go-bft/message"
+	log "github.com/sirupsen/logrus"
 )
 
 type Validators struct {
 	sync.RWMutex
 	height int64 // current height
 
-	Vals    custom.IValidators
-	privVal custom.IPrivValidator
+	CustomValidators custom.IValidators
+	privVal          custom.IPrivValidator
 }
 
 func NewValidators(val custom.IValidators, pVal custom.IPrivValidator) *Validators {
 	v := &Validators{
-		Vals:    val,
-		privVal: pVal,
+		CustomValidators: val,
+		privVal:          pVal,
 	}
 	return v
 }
@@ -32,19 +33,30 @@ func (v *Validators) VerifySignature(vote *message.Vote) bool {
 	v.RLock()
 	defer v.RUnlock()
 
-	return v.Vals.GetValidator(vote.Address).VerifySig(vote.Digest(), vote.Signature)
+	val := v.CustomValidators.GetValidator(vote.Address)
+	if val == nil {
+		log.Error("vote %s signed by a invalid validator", vote.String())
+		return false
+	}
+	return val.VerifySig(vote.Digest(), vote.Signature)
 }
 
 func (v *Validators) GetVotingPower(address *message.PubKey) int64 {
 	v.RLock()
 	defer v.RUnlock()
 
-	return v.Vals.GetValidator(*address).GetVotingPower()
+	val := v.CustomValidators.GetValidator(*address)
+	if val == nil {
+		log.Error("%s is not a  validator", address)
+		return 0
+	}
+
+	return val.GetVotingPower()
 }
 
 func (v *Validators) GetTotalVotingPower() int64 {
 	v.RLock()
 	defer v.RUnlock()
 
-	return v.Vals.TotalVotingPower()
+	return v.CustomValidators.TotalVotingPower()
 }

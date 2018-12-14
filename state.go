@@ -1,6 +1,7 @@
 package go_bft
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/coschain/go-bft/message"
@@ -23,6 +24,28 @@ const (
 
 	// NOTE: Update IsValid method if you change this!
 )
+
+const (
+	msgQueueSize = 1000
+)
+
+// msgs from the reactor which may update the state
+type msgInfo struct {
+	Msg message.ConsensusMessage `json:"msg"`
+	//PeerID p2p.ID                  `json:"peer_key"`
+}
+
+// internally generated messages which may update the state
+type timeoutInfo struct {
+	Duration time.Duration `json:"duration"`
+	Height   int64         `json:"height"`
+	Round    int           `json:"round"`
+	Step     RoundStepType `json:"step"`
+}
+
+func (ti *timeoutInfo) String() string {
+	return fmt.Sprintf("%v ; %d/%d %v", ti.Duration, ti.Height, ti.Round, ti.Step)
+}
 
 // IsValid returns true if the step is valid, false if unknown/undefined.
 func (rs RoundStepType) IsValid() bool {
@@ -69,5 +92,40 @@ type RoundState struct {
 	Votes          *HeightVoteSet
 	CommitRound    int
 	LastCommit     *VoteSet // Last precommits at Height-1
-	LastValidators *Validators
+	//LastValidators []message.PubKey
+}
+
+// String returns a string
+func (rs *RoundState) String() string {
+	return rs.StringIndented("")
+}
+
+// StringIndented returns a string
+func (rs *RoundState) StringIndented(indent string) string {
+	return fmt.Sprintf(`RoundState{
+%s  H:%v R:%v S:%v
+%s  StartTime:     %v
+%s  CommitTime:    %v
+%s  Proposal:      %v
+%s  LockedRound:   %v
+%s  LockedProposal:   %v
+%s  Votes:         %v
+%s  LastCommit:    %v
+%s  LastValidators:%v
+%s}`,
+		indent, rs.Height, rs.Round, rs.Step,
+		indent, rs.StartTime,
+		indent, rs.CommitTime,
+		indent, rs.Proposal,
+		indent, rs.LockedRound,
+		indent, rs.LockedProposal.String(),
+		indent, rs.Votes.StringIndented(indent+"  "),
+		indent, rs.LastCommit.String(),
+		indent)
+}
+
+// StringShort returns a string
+func (rs *RoundState) StringShort() string {
+	return fmt.Sprintf(`RoundState{H:%v R:%v S:%v ST:%v}`,
+		rs.Height, rs.Round, rs.Step, rs.StartTime)
 }

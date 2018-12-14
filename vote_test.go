@@ -10,12 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestVotes(t *testing.T) {
-	//assert := assert.New(t)
-	//NewValidators(1,)
-	//voteSet := NewVoteSet(1, 0, message.PrevoteType)
-}
-
 func TestValidatorsVotes(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -101,10 +95,10 @@ func TestValidatorsVotes(t *testing.T) {
 	prevote1_4.Address = pubkey4
 	prevote1_4.Signature = []byte(pubkey4)
 
+	// test maj23
 	hvSet1.AddVote(prevote1_1)
 	hvSet1.AddVote(prevote1_2)
 	data, ok := hvSet1.Prevotes(0).TwoThirdsMajority()
-
 	assert.False(ok)
 	assert.Equal(data, message.NilData)
 	hvSet1.AddVote(prevote1_3)
