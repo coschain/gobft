@@ -50,3 +50,18 @@ func cdcEncode(item interface{}) []byte {
 	}
 	return nil
 }
+
+// VoteMessage is sent when voting for a proposal (or lack thereof).
+type VoteMessage struct {
+	Vote *Vote
+}
+
+// ValidateBasic performs basic validation.
+func (m *VoteMessage) ValidateBasic() error {
+	return m.Vote.ValidateBasic()
+}
+
+// String returns a string representation.
+func (m *VoteMessage) String() string {
+	return fmt.Sprintf("[Vote %v]", m.Vote)
+}

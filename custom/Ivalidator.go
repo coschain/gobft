@@ -24,12 +24,19 @@ type IValidators interface {
 	IsValidator(key message.PubKey) bool
 	TotalVotingPower() int64
 
-	GetCurrentProposer() IPubValidator
-	// DecidesProposal decides what will be proposed if this node is the current proposer
+	GetCurrentProposer() message.PubKey
+	// DecidesProposal decides what will be proposed if this validator is the current
+	// proposer. Other validators also used this function to decide what proposal they
+	// will vote for, if the return value doesn't match the ProposedData of the proposal
+	// they received from the current proposer, they prevote for nil
 	DecidesProposal() message.ProposedData
 
 	// Commit defines the actions the users taken when consensus is reached
 	Commit(p message.ProposedData) error
+
+	GetAppState() *message.AppState
+	// BroadCast sends v to other validators
+	BroadCast(v *message.Vote) error
 }
 
 // IPubValidator verifies if a message is properly signed by the right validator

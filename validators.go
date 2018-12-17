@@ -29,13 +29,17 @@ func (v *Validators) Sign(vote *message.Vote) {
 	vote.Signature = v.privVal.Sign(vote.Digest())
 }
 
+func (v *Validators) GetSelfPubKey() message.PubKey {
+	return v.privVal.GetPubKey()
+}
+
 func (v *Validators) VerifySignature(vote *message.Vote) bool {
 	v.RLock()
 	defer v.RUnlock()
 
 	val := v.CustomValidators.GetValidator(vote.Address)
 	if val == nil {
-		log.Error("vote %s signed by a invalid validator", vote.String())
+		log.Errorf("vote %s signed by a invalid validator", vote.String())
 		return false
 	}
 	return val.VerifySig(vote.Digest(), vote.Signature)
@@ -47,7 +51,7 @@ func (v *Validators) GetVotingPower(address *message.PubKey) int64 {
 
 	val := v.CustomValidators.GetValidator(*address)
 	if val == nil {
-		log.Error("%s is not a  validator", address)
+		log.Errorf("%s is not a  validator", *address)
 		return 0
 	}
 

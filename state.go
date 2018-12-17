@@ -85,7 +85,7 @@ type RoundState struct {
 	Step       RoundStepType
 	StartTime  time.Time
 	CommitTime time.Time // Subjective time when +2/3 precommits for Block at Round were found
-	//Validators         *types.ValidatorSet `json:"validators"`
+
 	Proposal       *message.Vote
 	LockedRound    int
 	LockedProposal *message.Vote
@@ -110,8 +110,7 @@ func (rs *RoundState) StringIndented(indent string) string {
 %s  LockedRound:   %v
 %s  LockedProposal:   %v
 %s  Votes:         %v
-%s  LastCommit:    %v
-%s  LastValidators:%v
+//%s  LastCommit:    %v
 %s}`,
 		indent, rs.Height, rs.Round, rs.Step,
 		indent, rs.StartTime,
@@ -120,7 +119,7 @@ func (rs *RoundState) StringIndented(indent string) string {
 		indent, rs.LockedRound,
 		indent, rs.LockedProposal.String(),
 		indent, rs.Votes.StringIndented(indent+"  "),
-		indent, rs.LastCommit.String(),
+		//		indent, rs.LastCommit.String(),
 		indent)
 }
 

@@ -117,6 +117,20 @@ func (mr *MockIValidatorsMockRecorder) Commit(p interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockIValidators)(nil).Commit), p)
 }
 
+// GetAppState mocks base method
+func (m *MockIValidators) GetAppState() *message.AppState {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAppState")
+	ret0, _ := ret[0].(*message.AppState)
+	return ret0
+}
+
+// GetAppState indicates an expected call of GetAppState
+func (mr *MockIValidatorsMockRecorder) GetAppState() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAppState", reflect.TypeOf((*MockIValidators)(nil).GetAppState))
+}
+
 // MockIPubValidator is a mock of IPubValidator interface
 type MockIPubValidator struct {
 	ctrl     *gomock.Controller

@@ -60,7 +60,7 @@ func NewVote(t VoteType, height int64, round int, proposed *ProposedData) *Vote 
 		Type:      t,
 		Height:    height,
 		Round:     round,
-		Timestamp: time.Now(),
+		Timestamp: common.Now(),
 		Proposed:  *proposed,
 	}
 }

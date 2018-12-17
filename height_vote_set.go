@@ -30,8 +30,6 @@ but which round is not known in advance, so when a peer
 provides a precommit for a round greater than mtx.round,
 we create a new entry in roundVoteSets but also remember the
 peer to prevent abuse.
-We let each peer provide us with up to 2 unexpected "catchup" rounds.
-One for their LastCommit round, and another for the official commit round.
 */
 type HeightVoteSet struct {
 	height int64
