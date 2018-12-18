@@ -18,6 +18,7 @@ func init() {
 // ConsensusMessage is a message that can be sent and received on the ConsensusReactor
 type ConsensusMessage interface {
 	ValidateBasic() error
+	Bytes() []byte
 }
 
 func RegisterConsensusMessages(cdc *amino.Codec) {
@@ -34,7 +35,7 @@ func RegisterConsensusMessages(cdc *amino.Codec) {
 	//cdc.RegisterConcrete(&ProposalHeartbeatMessage{}, "tendermint/ProposalHeartbeat", nil)
 }
 
-func decodeMsg(bz []byte) (msg ConsensusMessage, err error) {
+func DecodeConsensusMsg(bz []byte) (msg ConsensusMessage, err error) {
 	if len(bz) > maxMsgSize {
 		return msg, fmt.Errorf("Msg exceeds max size (%d > %d)", len(bz), maxMsgSize)
 	}
@@ -59,6 +60,10 @@ type VoteMessage struct {
 // ValidateBasic performs basic validation.
 func (m *VoteMessage) ValidateBasic() error {
 	return m.Vote.ValidateBasic()
+}
+
+func (m *VoteMessage) Bytes() []byte {
+	return cdcEncode(m)
 }
 
 // String returns a string representation.

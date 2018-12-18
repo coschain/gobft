@@ -76,10 +76,10 @@ func (mr *MockIValidatorsMockRecorder) TotalVotingPower() *gomock.Call {
 }
 
 // GetCurrentProposer mocks base method
-func (m *MockIValidators) GetCurrentProposer() IPubValidator {
+func (m *MockIValidators) GetCurrentProposer() message.PubKey {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetCurrentProposer")
-	ret0, _ := ret[0].(IPubValidator)
+	ret0, _ := ret[0].(message.PubKey)
 	return ret0
 }
 
@@ -129,6 +129,20 @@ func (m *MockIValidators) GetAppState() *message.AppState {
 func (mr *MockIValidatorsMockRecorder) GetAppState() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAppState", reflect.TypeOf((*MockIValidators)(nil).GetAppState))
+}
+
+// BroadCast mocks base method
+func (m *MockIValidators) BroadCast(v message.ConsensusMessage) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BroadCast", v)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// BroadCast indicates an expected call of BroadCast
+func (mr *MockIValidatorsMockRecorder) BroadCast(v interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BroadCast", reflect.TypeOf((*MockIValidators)(nil).BroadCast), v)
 }
 
 // MockIPubValidator is a mock of IPubValidator interface

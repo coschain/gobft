@@ -54,7 +54,7 @@ type IValidators interface {
 
 	GetAppState() *message.AppState
 	// BroadCast sends v to other validators
-	BroadCast(v *message.Vote) error
+	BroadCast(v message.ConsensusMessage) error
 }
 
 // IPubValidator verifies if a message is properly signed by the right validator

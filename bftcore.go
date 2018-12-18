@@ -78,11 +78,11 @@ func (c *Core) updateRoundStep(round int, step RoundStepType) {
 }
 
 func (c *Core) updateToAppState(appState *message.AppState) {
-
+	// TODO:
 }
 
 func (c *Core) reconstructLastCommit() {
-
+	// TODO:
 }
 
 // receiveRoutine keeps the RoundState and is the only thing that updates it.
@@ -239,6 +239,11 @@ func (c *Core) isReadyToPrevote() bool {
 
 }
 
+func (c *Core) isValidator() bool {
+	self := c.validators.GetSelfPubKey()
+	return c.validators.CustomValidators.IsValidator(self)
+}
+
 // Enter (CreateEmptyBlocks): from enterNewRound(height,round)
 // Enter (CreateEmptyBlocks, CreateEmptyBlocksInterval > 0 ): after enterNewRound(height,round), after timeout of CreateEmptyBlocksInterval
 // Enter (!CreateEmptyBlocks) : after enterNewRound(height,round), once txs are in the mempool
@@ -285,6 +290,9 @@ func (c *Core) enterPropose(height int64, round int) {
 func (c *Core) doPropose(height int64, round int) {
 	data := c.validators.CustomValidators.DecidesProposal()
 	proposal := message.NewVote(message.ProposalType, height, round, &data)
+	c.Proposal = proposal
+	c.validators.Sign(proposal)
+	c.sendInternalMessage(msgInfo{&message.VoteMessage{proposal}})
 	c.validators.CustomValidators.BroadCast(proposal)
 }
 
@@ -308,8 +316,46 @@ func (c *Core) enterPrevote(height int64, round int) {
 	// (so we have more time to try and collect +2/3 prevotes for a single block)
 }
 
+// sign the vote and publish on internalMsgQueue
+func (c *Core) signAddVote(vote *message.Vote) {
+	// if we're not a validator, do nothing
+	if !c.isValidator() {
+		return
+	}
+	c.validators.Sign(vote)
+	c.sendInternalMessage(msgInfo{&message.VoteMessage{vote}})
+}
+
+func (c *Core) sendInternalMessage(mi msgInfo) {
+	select {
+	case c.msgQueue <- mi:
+	default:
+		// NOTE: using the go-routine means our votes can
+		// be processed out of order.
+		// TODO: use CList here for strict determinism and
+		// attempt push to internalMsgQueue in receiveRoutine
+		log.Info("Internal msg queue is full. Using a go-routine")
+		go func() { c.msgQueue <- mi }()
+	}
+}
+
 func (c *Core) doPrevote(height int64, round int) {
-	// TODO:
+	var prevote *message.Vote
+	if c.LockedRound >= 0 && c.LockedProposal != nil {
+		log.Info("enterPrevote: vote for POLed proposal: ", c.LockedProposal.Proposed)
+		prevote = message.NewVote(message.PrevoteType, c.Height, c.Round, &c.LockedProposal.Proposed)
+		//c.validators.Sign(prevote)
+		//c.sendInternalMessage(msgInfo{&message.VoteMessage{prevote}})
+		//c.validators.CustomValidators.BroadCast(prevote)
+	} else if c.Proposal != nil &&
+		c.Proposal.Proposed == c.validators.CustomValidators.DecidesProposal() {
+		prevote = message.NewVote(message.PrevoteType, c.Height, c.Round, &c.Proposal.Proposed)
+	} else {
+		prevote = message.NewVote(message.PrevoteType, c.Height, c.Round, &message.NilData)
+	}
+
+	c.signAddVote(prevote)
+	c.validators.CustomValidators.BroadCast(prevote)
 }
 
 func (c *Core) enterPrevoteWait(height int64, round int) {
@@ -398,7 +444,7 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 
 	switch vote.Type {
 	case message.ProposalType:
-		// TODO:
+		err = c.defaultSetProposal(vote)
 	case message.PrevoteType:
 		prevotes := c.Votes.Prevotes(vote.Round)
 		log.Info("Added to prevote", "vote", vote, "prevotes", prevotes.String())
@@ -454,7 +500,7 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 			if c.Proposal != nil {
 				c.enterPrevote(height, c.Round)
 			} else {
-				log.Error("receive prevote for ProposedData (%v), but we don't have proposal", vote.Proposed)
+				log.Errorf("receive prevote for ProposedData (%v), but we don't have proposal", vote.Proposed)
 			}
 		}
 
@@ -485,6 +531,33 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 	}
 
 	return
+}
+
+func (c *Core) defaultSetProposal(proposal *message.Vote) error {
+	// Already have one
+	if c.Proposal != nil {
+		log.Warnf("Already got proposal %v from %s, get another proposal %v from %s",
+			c.Proposal.Proposed, c.Proposal.Address, proposal.Proposed, proposal.Address)
+		return nil
+	}
+
+	// Does not apply
+	if proposal.Height != c.Height || proposal.Round != c.Round {
+		return nil
+	}
+
+	if c.validators.CustomValidators.GetCurrentProposer() != proposal.Address {
+		return ErrInvalidProposer
+	}
+
+	// Verify signature
+	if !c.validators.VerifySignature(proposal) {
+		return ErrInvalidProposalSignature
+	}
+
+	c.Proposal = proposal
+	log.Info("Received proposal", "proposal", proposal)
+	return nil
 }
 
 // Attempt to schedule a timeout (by sending timeoutInfo on the tickChan)

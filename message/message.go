@@ -134,6 +134,10 @@ func (vote *Vote) ValidateBasic() error {
 	return nil
 }
 
+func (vote *Vote) Bytes() []byte {
+	return cdcEncode(vote)
+}
+
 // Commit contains the evidence that a block was committed by a set of validators.
 type Commit struct {
 	// NOTE: The Precommits are in order of address to preserve the bonded ValidatorSet order.

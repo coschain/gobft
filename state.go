@@ -110,7 +110,6 @@ func (rs *RoundState) StringIndented(indent string) string {
 %s  LockedRound:   %v
 %s  LockedProposal:   %v
 %s  Votes:         %v
-//%s  LastCommit:    %v
 %s}`,
 		indent, rs.Height, rs.Round, rs.Step,
 		indent, rs.StartTime,

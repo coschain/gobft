@@ -15,6 +15,7 @@ var (
 )
 
 var (
+	ErrInvalidProposer          = errors.New("Error invalid proposer")
 	ErrInvalidProposalSignature = errors.New("Error invalid proposal signature")
 	ErrInvalidProposalPOLRound  = errors.New("Error invalid proposal POL round")
 	ErrAddingVote               = errors.New("Error adding vote")
