@@ -463,11 +463,57 @@ func (c *Core) enterPrecommit(height int64, round int) {
 }
 
 func (c *Core) enterPrecommitWait(height int64, round int) {
-	// TODO:
+	if c.Height != height || round < c.Round || (c.Round == round && c.triggeredTimeoutPrecommit) {
+		log.Debug(
+			fmt.Sprintf(
+				"enterPrecommitWait(%v/%v): Invalid args. "+
+					"Current state is Height/Round: %v/%v/, triggeredTimeoutPrecommit:%v",
+				height, round, c.Height, c.Round, c.triggeredTimeoutPrecommit))
+		return
+	}
+	if !c.Votes.Precommits(round).HasTwoThirdsAny() {
+		common.PanicSanity(fmt.Sprintf("enterPrecommitWait(%v/%v), but Precommits does not have any +2/3 votes", height, round))
+	}
+	log.Info(fmt.Sprintf("enterPrecommitWait(%v/%v). Current: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
+
+	defer func() {
+		// Done enterPrecommitWait:
+		c.triggeredTimeoutPrecommit = true
+	}()
+
+	// Wait for some more precommits; enterNewRound
+	c.scheduleTimeout(c.cfg.Precommit(round), height, round, RoundStepPrecommitWait)
 }
 
-func (c *Core) enterCommit(height int64, round int) {
-	// TODO:
+func (c *Core) enterCommit(height int64, commitRound int) {
+	if c.Height != height || RoundStepCommit <= c.Step {
+		log.Debug(fmt.Sprintf("enterCommit(%v/%v): Invalid args. Current step: %v/%v/%v", height, commitRound, c.Height, c.Round, c.Step))
+		return
+	}
+	log.Info(fmt.Sprintf("enterCommit(%v/%v). Current: %v/%v/%v", height, commitRound, c.Height, c.Round, c.Step))
+
+	defer func() {
+		// Done enterCommit:
+		// keep c.Round the same, commitRound points to the right Precommits set.
+		c.updateRoundStep(c.Round, RoundStepCommit)
+	}()
+
+	maj23, ok := c.Votes.Precommits(commitRound).TwoThirdsMajority()
+	if !ok {
+		common.PanicSanity("RunActionCommit() expects +2/3 precommits")
+	}
+
+	c.CommitRound = commitRound
+	c.CommitTime = common.Now()
+
+	// Maybe finalize immediately.
+	c.doCommit(maj23)
+}
+
+func (c *Core) doCommit(data message.ProposedData) {
+	c.validators.CustomValidators.Commit(data)
+	appState := c.validators.CustomValidators.GetAppState()
+	c.updateToAppState(appState)
 }
 
 // Attempt to add the vote. if its a duplicate signature, dupeout the validator
@@ -608,12 +654,12 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 		precommits := c.Votes.Precommits(vote.Round)
 		log.Info("Added to precommit", "vote", vote, "precommits", precommits.String())
 
-		polkaData, ok := precommits.TwoThirdsMajority()
+		maj23, ok := precommits.TwoThirdsMajority()
 		if ok {
 			// Executed as TwoThirdsMajority could be from a higher round
 			c.enterNewRound(height, vote.Round)
 			c.enterPrecommit(height, vote.Round)
-			if polkaData != message.NilData {
+			if maj23 != message.NilData {
 				c.enterCommit(height, vote.Round)
 				if c.cfg.SkipTimeoutCommit && precommits.HasAll() {
 					c.enterNewRound(c.Height, 0)
