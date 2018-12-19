@@ -316,7 +316,7 @@ func (c *Core) enterPrevote(height int64, round int) {
 	// (so we have more time to try and collect +2/3 prevotes for a single block)
 }
 
-// sign the vote and publish on internalMsgQueue
+// sign the vote, publish on internalMsgQueue and broadcast
 func (c *Core) signAddVote(vote *message.Vote) {
 	// if we're not a validator, do nothing
 	if !c.isValidator() {
@@ -324,6 +324,7 @@ func (c *Core) signAddVote(vote *message.Vote) {
 	}
 	c.validators.Sign(vote)
 	c.sendInternalMessage(msgInfo{&message.VoteMessage{vote}})
+	c.validators.CustomValidators.BroadCast(vote)
 }
 
 func (c *Core) sendInternalMessage(mi msgInfo) {
@@ -355,15 +356,110 @@ func (c *Core) doPrevote(height int64, round int) {
 	}
 
 	c.signAddVote(prevote)
-	c.validators.CustomValidators.BroadCast(prevote)
 }
 
 func (c *Core) enterPrevoteWait(height int64, round int) {
-	// TODO:
+	if c.Height != height || round < c.Round || (c.Round == round && RoundStepPrevoteWait <= c.Step) {
+		log.Debug(fmt.Sprintf("enterPrevoteWait(%v/%v): Invalid args. Current step: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
+		return
+	}
+	if !c.Votes.Prevotes(round).HasTwoThirdsAny() {
+		common.PanicSanity(fmt.Sprintf("enterPrevoteWait(%v/%v), but Prevotes does not have any +2/3 votes", height, round))
+	}
+	log.Info(fmt.Sprintf("enterPrevoteWait(%v/%v). Current: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
+
+	defer func() {
+		// Done enterPrevoteWait:
+		c.updateRoundStep(round, RoundStepPrevoteWait)
+	}()
+
+	// Wait for some more prevotes; enterPrecommit
+	c.scheduleTimeout(c.cfg.Prevote(round), height, round, RoundStepPrevoteWait)
 }
 
 func (c *Core) enterPrecommit(height int64, round int) {
-	// TODO:
+	if c.Height != height || round < c.Round || (c.Round == round && RoundStepPrecommit <= c.Step) {
+		log.Debug(fmt.Sprintf("enterPrecommit(%v/%v): Invalid args. Current step: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
+		return
+	}
+
+	log.Info(fmt.Sprintf("enterPrecommit(%v/%v). Current: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
+
+	defer func() {
+		// Done enterPrecommit:
+		c.updateRoundStep(round, RoundStepPrecommit)
+	}()
+
+	// check for a polkaData
+	polkaData, ok := c.Votes.Prevotes(round).TwoThirdsMajority()
+
+	precommit := message.NewVote(message.PrecommitType, height, round, &message.NilData)
+	// If we don't have a polkaData, we must precommit nil.
+	if !ok {
+		if c.LockedProposal != nil {
+			log.Info("enterPrecommit: No +2/3 prevotes during enterPrecommit while we're locked. Precommitting nil")
+		} else {
+			log.Info("enterPrecommit: No +2/3 prevotes during enterPrecommit. Precommitting nil.")
+		}
+		c.signAddVote(precommit)
+		return
+	}
+
+	// the latest POLRound should be this round.
+	polRound, _ := c.Votes.POLInfo()
+	if polRound != round {
+		common.PanicSanity(fmt.Sprintf("This POLRound should be %v but got %v", round, polRound))
+	}
+
+	// +2/3 prevoted nil. Unlock and precommit nil.
+	if polkaData == message.NilData {
+		if c.LockedProposal == nil {
+			log.Info("enterPrecommit: +2/3 prevoted for nil.")
+		} else {
+			log.Info("enterPrecommit: +2/3 prevoted for nil. Unlocking")
+			c.LockedRound = -1
+			c.LockedProposal = nil
+		}
+		c.signAddVote(precommit)
+		return
+	}
+
+	// At this point, +2/3 prevoted for a particular proposal.
+
+	// If we're already locked on that proposed data, precommit it, and update the LockedRound
+	if c.LockedRound >= 0 && c.LockedProposal.Proposed == polkaData {
+		log.Info("enterPrecommit: +2/3 prevoted locked block. Relocking")
+		c.LockedRound = round
+		precommit.Proposed = polkaData
+		c.signAddVote(precommit)
+		return
+	}
+
+	// If +2/3 prevoted for proposal block, stage and precommit it
+	if c.Proposal != nil && c.Proposal.Proposed == polkaData {
+		log.Info("enterPrecommit: +2/3 prevoted proposal block. Locking", "proposed", polkaData)
+		c.LockedRound = round
+		c.LockedProposal = c.Proposal
+		precommit.Proposed = polkaData
+		c.signAddVote(precommit)
+		return
+	}
+
+	// If we get here， it means:
+	// 1. our LockedProposal doesn't match the polka(this should never happen cuz once we got polka,
+	//    lock on different proposed data is released)
+	// 2. we have a polka on some proposed data that we don't have
+	if c.LockedRound >= 0 && c.LockedProposal.Proposed != polkaData {
+		common.PanicSanity(fmt.Sprintf(
+			"[enterPrecommit] we are locked on %v but receive polka on %v",
+			c.LockedProposal.Proposed, polkaData))
+	}
+
+	log.Errorf("Got a polkaData %v but we don't have its proposal", polkaData)
+	c.LockedRound = -1
+	c.LockedProposal = nil
+
+	c.signAddVote(precommit)
 }
 
 func (c *Core) enterPrecommitWait(height int64, round int) {
@@ -450,10 +546,10 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 		log.Info("Added to prevote", "vote", vote, "prevotes", prevotes.String())
 
 		// If +2/3 prevotes for a block or nil for *any* round:
-		if propData, ok := prevotes.TwoThirdsMajority(); ok {
+		if polkaData, ok := prevotes.TwoThirdsMajority(); ok {
 
-			// There was a polka!
-			// If we're locked but this is a recent polka, unlock.
+			// There was a polkaData!
+			// If we're locked but this is a recent polkaData, unlock.
 			// If it matches our ProposalBlock, update the ValidBlock
 
 			// Unlock if `c.LockedRound < vote.Round <= c.Round`
@@ -461,19 +557,19 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 			if (c.LockedProposal != nil) &&
 				(c.LockedRound < vote.Round) &&
 				(vote.Round <= c.Round) &&
-				c.LockedProposal.Proposed != propData {
+				c.LockedProposal.Proposed != polkaData {
 
 				log.Info("Unlocking because of POL.", "lockedRound", c.LockedRound, "POLRound", vote.Round)
 				c.LockedRound = -1
 				c.LockedProposal = nil
 			}
 
-			// NOTE: our proposal may be nil or not what received a polka..
-			if propData != message.NilData && (vote.Round == c.Round) {
-				if c.Proposal != nil && c.Proposal.Proposed != propData {
-					log.Info(
+			// NOTE: our proposal may be nil or not what received a polkaData..
+			if polkaData != message.NilData && (vote.Round == c.Round) {
+				if c.Proposal != nil && c.Proposal.Proposed != polkaData {
+					log.Warnf(
 						"Polka. Valid ProposedData we don't know about. Set Proposal=nil",
-						"expect proposal:", c.Proposal.Proposed, "polka proposal", propData)
+						"expect proposal:", c.Proposal.Proposed, "polkaData proposal", polkaData)
 					// We're getting the wrong proposal.
 					c.Proposal = nil
 				}
@@ -485,12 +581,16 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 			// Round-skip if there is any 2/3+ of votes ahead of us
 			c.enterNewRound(height, vote.Round)
 		} else if c.Round == vote.Round && RoundStepPrevote <= c.Step { // current round
-			data, ok := prevotes.TwoThirdsMajority()
+			polkaData, ok := prevotes.TwoThirdsMajority()
 			if ok {
-				if c.Proposal != nil || data == message.NilData {
+				// c.Proposal != nil means we got polka on it, cuz if we a polka on something else
+				// other than the Proposal, it'll be set to nil
+				// if we got polka on NilData, then Proposal will be set to nil cuz no one should
+				// propose NilData
+				if c.Proposal != nil || polkaData == message.NilData {
 					c.enterPrecommit(height, vote.Round)
 				} else {
-					log.Errorf("received polka on %v, but we didn't get the right proposal. height: %d, round: %d", data, c.Height, c.Round)
+					log.Errorf("received polkaData %v, but we didn't get the right proposal. height: %d, round: %d", polkaData, c.Height, c.Round)
 				}
 			} else if prevotes.HasTwoThirdsAny() {
 				c.enterPrevoteWait(height, vote.Round)
@@ -508,12 +608,12 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 		precommits := c.Votes.Precommits(vote.Round)
 		log.Info("Added to precommit", "vote", vote, "precommits", precommits.String())
 
-		data, ok := precommits.TwoThirdsMajority()
+		polkaData, ok := precommits.TwoThirdsMajority()
 		if ok {
 			// Executed as TwoThirdsMajority could be from a higher round
 			c.enterNewRound(height, vote.Round)
 			c.enterPrecommit(height, vote.Round)
-			if data != message.NilData {
+			if polkaData != message.NilData {
 				c.enterCommit(height, vote.Round)
 				if c.cfg.SkipTimeoutCommit && precommits.HasAll() {
 					c.enterNewRound(c.Height, 0)
@@ -546,6 +646,7 @@ func (c *Core) defaultSetProposal(proposal *message.Vote) error {
 		return nil
 	}
 
+	// check if we are the current proposer
 	if c.validators.CustomValidators.GetCurrentProposer() != proposal.Address {
 		return ErrInvalidProposer
 	}
@@ -555,7 +656,10 @@ func (c *Core) defaultSetProposal(proposal *message.Vote) error {
 		return ErrInvalidProposalSignature
 	}
 
-	c.Proposal = proposal
+	// Only accept the proposal and set Core.Proposal when CustomValidators approves it
+	if proposal.Proposed == c.validators.CustomValidators.DecidesProposal() {
+		c.Proposal = proposal
+	}
 	log.Info("Received proposal", "proposal", proposal)
 	return nil
 }
