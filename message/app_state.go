@@ -5,10 +5,8 @@ import (
 )
 
 type AppState struct {
-	// SYSID is immutable, each application should specify a unique SYSID
-	SYSID string
-
-	// LastBlockHeight=0 at genesis (ie. block(H=0) does not exist)
+	// The first height that reaches bft consensus is 1, so LastHeight
+	// should be 0 at genesis
 	LastHeight       int64
 	LastProposedData ProposedData
 	LastCommitTime   time.Time

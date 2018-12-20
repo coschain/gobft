@@ -34,8 +34,8 @@ func (v *Validators) GetSelfPubKey() message.PubKey {
 }
 
 func (v *Validators) VerifySignature(vote *message.Vote) bool {
-	v.RLock()
-	defer v.RUnlock()
+	//v.RLock()
+	//defer v.RUnlock()
 
 	val := v.CustomValidators.GetValidator(vote.Address)
 	if val == nil {
@@ -46,8 +46,8 @@ func (v *Validators) VerifySignature(vote *message.Vote) bool {
 }
 
 func (v *Validators) GetVotingPower(address *message.PubKey) int64 {
-	v.RLock()
-	defer v.RUnlock()
+	//v.RLock()
+	//defer v.RUnlock()
 
 	val := v.CustomValidators.GetValidator(*address)
 	if val == nil {
@@ -59,8 +59,8 @@ func (v *Validators) GetVotingPower(address *message.PubKey) int64 {
 }
 
 func (v *Validators) GetTotalVotingPower() int64 {
-	v.RLock()
-	defer v.RUnlock()
+	//v.RLock()
+	//defer v.RUnlock()
 
 	return v.CustomValidators.TotalVotingPower()
 }

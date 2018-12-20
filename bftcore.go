@@ -36,9 +36,6 @@ func New(vals custom.IValidators, pVal custom.IPrivValidator) *Core {
 		done:          make(chan struct{}),
 	}
 
-	appState := vals.GetAppState()
-	c.reconstructLastCommit()
-	c.updateToAppState(appState)
 	return c
 }
 
@@ -46,6 +43,9 @@ func (c *Core) Start() error {
 	if err := c.timeoutTicker.Start(); err != nil {
 		return err
 	}
+
+	appState := c.validators.CustomValidators.GetAppState()
+	c.updateToAppState(appState)
 
 	go c.receiveRoutine()
 	c.scheduleRound0(c.GetRoundState())
@@ -78,11 +78,35 @@ func (c *Core) updateRoundStep(round int, step RoundStepType) {
 }
 
 func (c *Core) updateToAppState(appState *message.AppState) {
-	// TODO:
-}
+	if appState == nil {
+		return
+	}
 
-func (c *Core) reconstructLastCommit() {
-	// TODO:
+	if c.CommitRound > -1 && 0 < c.Height && c.Height != appState.LastHeight {
+		common.PanicSanity(fmt.Sprintf("updateToState() expected state height of %v but found %v",
+			c.Height, appState.LastHeight))
+	}
+
+	// Next desired bft height
+	c.Height = appState.LastHeight + 1
+	c.updateRoundStep(0, RoundStepNewHeight)
+	if c.CommitTime.IsZero() {
+		// "Now" makes it easier to sync up dev nodes.
+		// We add timeoutCommit to allow transactions
+		// to be gathered for the first block.
+		// And alternative solution that relies on clocks:
+		//  c.StartTime = state.LastBlockTime.Add(timeoutCommit)
+		c.StartTime = c.cfg.Commit(common.Now())
+	} else {
+		c.StartTime = c.cfg.Commit(c.CommitTime)
+	}
+
+	c.Proposal = nil
+	c.LockedRound = -1
+	c.LockedProposal = nil
+
+	c.Votes = NewHeightVoteSet(c.Height, c.validators)
+	c.CommitRound = -1
 }
 
 // receiveRoutine keeps the RoundState and is the only thing that updates it.
@@ -231,6 +255,7 @@ func (c *Core) enterNewRound(height int64, round int) {
 }
 
 func (c *Core) isReadyToPrevote() bool {
+	// TODO:
 	if c.Proposal != nil || c.LockedRound >= 0 {
 		return true
 	}
@@ -275,8 +300,6 @@ func (c *Core) enterPropose(height int64, round int) {
 		log.Debug("This node is not a validator")
 		return
 	}
-
-	log.Debug("This node is a validator")
 
 	if c.validators.CustomValidators.GetCurrentProposer() == self {
 		log.Info("enterPropose: Our turn to propose", "proposer", self)
@@ -514,6 +537,10 @@ func (c *Core) doCommit(data message.ProposedData) {
 	c.validators.CustomValidators.Commit(data)
 	appState := c.validators.CustomValidators.GetAppState()
 	c.updateToAppState(appState)
+
+	// c.StartTime is already set.
+	// Schedule Round0 to start soon.
+	c.scheduleRound0(&c.RoundState)
 }
 
 // Attempt to add the vote. if its a duplicate signature, dupeout the validator
@@ -543,7 +570,7 @@ func (c *Core) tryAddVote(vote *message.Vote) (bool, error) {
 }
 
 func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
-	log.Debug("addVote", "voteHeight", vote.Height, "voteType", vote.Type, "csHeight", c.Height)
+	log.Debug("addVote", "voteHeight", vote.Height, "voteType", vote.Type, "cHeight", c.Height)
 
 	// A precommit for the previous height?
 	// These come in while we wait timeoutCommit
@@ -563,7 +590,7 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 		// if we can skip timeoutCommit and have all the votes now,
 		if c.cfg.SkipTimeoutCommit && c.LastCommit.HasAll() {
 			// go straight to new round (skip timeout commit)
-			// c.scheduleTimeout(time.Duration(0), c.Height, 0, cstypes.RoundStepNewHeight)
+			// c.scheduleTimeout(time.Duration(0), c.Height, 0, ctypes.RoundStepNewHeight)
 			c.enterNewRound(c.Height, 0)
 		}
 
@@ -574,7 +601,7 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 	// Not necessarily a bad peer, but not favourable behaviour.
 	if vote.Height != c.Height {
 		err = ErrVoteHeightMismatch
-		log.Info("Vote ignored and not added", "voteHeight", vote.Height, "csHeight", c.Height, "err", err)
+		log.Info("Vote ignored and not added", "voteHeight", vote.Height, "cHeight", c.Height, "err", err)
 		return
 	}
 
