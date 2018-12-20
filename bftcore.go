@@ -65,6 +65,13 @@ func (c *Core) GetRoundState() *RoundState {
 	return &rs
 }
 
+func (c *Core) GetLastCommit() *message.Commit {
+	c.RLock()
+	defer c.RUnlock()
+
+	return c.LastCommit.MakeCommit()
+}
+
 // enterNewRound(height, 0) at c.StartTime.
 func (c *Core) scheduleRound0(rs *RoundState) {
 	log.Info("scheduleRound0", "now", common.Now(), "startTime", c.StartTime)
@@ -87,6 +94,14 @@ func (c *Core) updateToAppState(appState *message.AppState) {
 			c.Height, appState.LastHeight))
 	}
 
+	var lastPrecommits *VoteSet
+	if c.CommitRound > -1 && c.Votes != nil {
+		if !c.Votes.Precommits(c.CommitRound).HasTwoThirdsMajority() {
+			common.PanicSanity("updateToState(state) called but last Precommit round didn't have +2/3")
+		}
+		lastPrecommits = c.Votes.Precommits(c.CommitRound)
+	}
+
 	// Next desired bft height
 	c.Height = appState.LastHeight + 1
 	c.updateRoundStep(0, RoundStepNewHeight)
@@ -107,6 +122,7 @@ func (c *Core) updateToAppState(appState *message.AppState) {
 
 	c.Votes = NewHeightVoteSet(c.Height, c.validators)
 	c.CommitRound = -1
+	c.LastCommit = lastPrecommits
 }
 
 // receiveRoutine keeps the RoundState and is the only thing that updates it.
@@ -553,11 +569,7 @@ func (c *Core) tryAddVote(vote *message.Vote) (bool, error) {
 		if err == ErrVoteHeightMismatch {
 			return added, err
 		} else if _, ok := err.(*ErrVoteConflictingVotes); ok {
-			// TODO:
-			//if bytes.Equal(vote.ValidatorAddress, c.privValidator.GetAddress()) {
-			//	log.Error("Found conflicting vote from ourselves. Did you unsafe_reset a validator?", "height", vote.Height, "round", vote.Round, "type", vote.Type)
-			//	return added, err
-			//}
+			// TODO: catch conflict votes
 			return added, err
 		} else {
 			// Probably an invalid signature / Bad peer.

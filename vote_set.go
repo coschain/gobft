@@ -271,10 +271,12 @@ func (voteSet *VoteSet) sumTotalFrac() (int64, int64, float64) {
 // Commit
 
 func (voteSet *VoteSet) MakeCommit() *message.Commit {
-	// TODO:
+	if voteSet.maj23 == message.NilData {
+		common.PanicSanity("[MakeCommit] precommit doen't reach +2/3")
+	}
 	return &message.Commit{
-		//ProposedData:    *voteSet.maj23,
-		//Precommits: votesCopy,
+		ProposedData: voteSet.maj23,
+		Precommits:   voteSet.votesByProposedData[voteSet.maj23].getAllVotes(),
 	}
 }
 
@@ -303,4 +305,12 @@ func (pd *proposedDataVotes) getVote(address message.PubKey) *message.Vote {
 		return vote
 	}
 	return nil
+}
+
+func (pd *proposedDataVotes) getAllVotes() []*message.Vote {
+	ret := make([]*message.Vote, 0, len(pd.votes))
+	for _, v := range pd.votes {
+		ret = append(ret, v)
+	}
+	return ret
 }

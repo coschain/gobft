@@ -143,8 +143,8 @@ type Commit struct {
 	// NOTE: The Precommits are in order of address to preserve the bonded ValidatorSet order.
 	// Any peer with a block can gossip precommits by index with a peer without recalculating the
 	// active ValidatorSet.
-	ProposedData *ProposedData `json:"proposed_data"`
-	Precommits   []*Vote       `json:"precommits"`
+	ProposedData ProposedData `json:"proposed_data"`
+	Precommits   []*Vote      `json:"precommits"`
 }
 
 // FirstPrecommit returns the first non-nil precommit in the commit.

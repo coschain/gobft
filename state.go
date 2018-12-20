@@ -92,7 +92,6 @@ type RoundState struct {
 	Votes          *HeightVoteSet
 	CommitRound    int
 	LastCommit     *VoteSet // Last precommits at Height-1
-	//LastValidators []message.PubKey
 }
 
 // String returns a string
