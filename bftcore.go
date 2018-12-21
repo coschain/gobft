@@ -277,7 +277,6 @@ func (c *Core) isReadyToPrevote() bool {
 	}
 
 	return false
-
 }
 
 func (c *Core) isValidator() bool {
@@ -329,6 +328,11 @@ func (c *Core) enterPropose(height int64, round int) {
 func (c *Core) doPropose(height int64, round int) {
 	data := c.validators.CustomValidators.DecidesProposal()
 	proposal := message.NewVote(message.ProposalType, height, round, &data)
+
+	if c.LockedRound > -1 && c.LockedProposal != nil {
+		proposal.Proposed = c.LockedProposal.Proposed
+	}
+
 	c.Proposal = proposal
 	c.validators.Sign(proposal)
 	c.sendInternalMessage(msgInfo{&message.VoteMessage{proposal}})
@@ -731,7 +735,7 @@ func (c *Core) defaultSetProposal(proposal *message.Vote) error {
 		return nil
 	}
 
-	// check if we are the current proposer
+	// check if proposal is from the current proposer
 	if c.validators.CustomValidators.GetCurrentProposer() != proposal.Address {
 		return ErrInvalidProposer
 	}
