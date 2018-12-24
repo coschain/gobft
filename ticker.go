@@ -38,6 +38,7 @@ func NewTimeoutTicker() TimeoutTicker {
 		timer:    time.NewTimer(0),
 		tickChan: make(chan timeoutInfo, tickTockBufferSize),
 		tockChan: make(chan timeoutInfo, tickTockBufferSize),
+		stopCh:   make(chan struct{}),
 	}
 	tt.stopTimer() // don't want to fire until the first scheduled timeout
 	return tt
@@ -54,6 +55,7 @@ func (t *timeoutTicker) Start() error {
 // Stop stops the timeout routine.
 func (t *timeoutTicker) Stop() error {
 	t.stopTimer()
+	close(t.stopCh)
 	return nil
 }
 
@@ -81,7 +83,6 @@ func (t *timeoutTicker) stopTimer() {
 			log.Debug("Timer already stopped")
 		}
 	}
-	close(t.stopCh)
 }
 
 // send on tickChan to start a new timer.
@@ -115,9 +116,9 @@ func (t *timeoutTicker) timeoutRoutine() {
 			// NOTE time.Timer allows duration to be non-positive
 			ti = newti
 			t.timer.Reset(ti.Duration)
-			log.Debug("Scheduled timeout", "dur", ti.Duration, "height", ti.Height, "round", ti.Round, "step", ti.Step)
+			log.Debug("Scheduled timeout", " dur ", ti.Duration, " height ", ti.Height, " round ", ti.Round, " step ", ti.Step)
 		case <-t.timer.C:
-			log.Info("Timed out", "dur", ti.Duration, "height", ti.Height, "round", ti.Round, "step", ti.Step)
+			log.Info("Timed out", " dur ", ti.Duration, " height ", ti.Height, " round ", ti.Round, " step ", ti.Step)
 			// go routine here guarantees timeoutRoutine doesn't block.
 			// Determinism comes from playback in the receiveRoutine.
 			// We can eliminate it by merging the timeoutRoutine into receiveRoutine

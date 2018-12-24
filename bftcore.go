@@ -27,7 +27,7 @@ type Core struct {
 	sync.RWMutex
 }
 
-func New(vals custom.ICommittee, pVal custom.IPrivValidator) *Core {
+func NewCore(vals custom.ICommittee, pVal custom.IPrivValidator) *Core {
 	c := &Core{
 		cfg:           DefaultConfig(),
 		validators:    NewValidators(vals, pVal),
@@ -84,7 +84,7 @@ func (c *Core) RecvMsg(msg message.ConsensusMessage) {
 
 // enterNewRound(height, 0) at c.StartTime.
 func (c *Core) scheduleRound0(rs *RoundState) {
-	log.Info("scheduleRound0", "now", common.Now(), "startTime", c.StartTime)
+	log.Info("scheduleRound0", " now ", common.Now(), " startTime ", c.StartTime)
 	sleepDuration := rs.StartTime.Sub(common.Now()) // nolint: gotype, gosimple
 	c.scheduleTimeout(sleepDuration, rs.Height, 0, RoundStepNewHeight)
 }
@@ -145,7 +145,7 @@ func (c *Core) receiveRoutine() {
 
 	defer func() {
 		if r := recover(); r != nil {
-			log.Error("CONSENSUS FAILURE!!!", "err", r, "stack", string(debug.Stack()))
+			log.Error("CONSENSUS FAILURE!!!", " err ", r, " stack ", string(debug.Stack()))
 			// stop gracefully
 			//
 			// NOTE: We most probably shouldn't be running any further when there is
@@ -327,11 +327,11 @@ func (c *Core) enterPropose(height int64, round int) {
 	}
 
 	if c.validators.CustomValidators.GetCurrentProposer() == self {
-		log.Info("enterPropose: Our turn to propose", "proposer", self)
+		log.Info("enterPropose: Our turn to propose", " proposer ", self)
 		c.doPropose(height, round)
 	} else {
-		log.Info("enterPropose: Not our turn to propose", "proposer",
-			c.validators.CustomValidators.GetCurrentProposer(), "self", self)
+		log.Info("enterPropose: Not our turn to propose", " proposer ",
+			c.validators.CustomValidators.GetCurrentProposer(), " self ", self)
 	}
 }
 
