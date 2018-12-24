@@ -12,11 +12,11 @@ type Validators struct {
 	sync.RWMutex
 	height int64 // current height
 
-	CustomValidators custom.IValidators
+	CustomValidators custom.ICommittee
 	privVal          custom.IPrivValidator
 }
 
-func NewValidators(val custom.IValidators, pVal custom.IPrivValidator) *Validators {
+func NewValidators(val custom.ICommittee, pVal custom.IPrivValidator) *Validators {
 	v := &Validators{
 		CustomValidators: val,
 		privVal:          pVal,

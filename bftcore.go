@@ -27,7 +27,7 @@ type Core struct {
 	sync.RWMutex
 }
 
-func New(vals custom.IValidators, pVal custom.IPrivValidator) *Core {
+func New(vals custom.ICommittee, pVal custom.IPrivValidator) *Core {
 	c := &Core{
 		cfg:           DefaultConfig(),
 		validators:    NewValidators(vals, pVal),
@@ -70,6 +70,16 @@ func (c *Core) GetLastCommit() *message.Commit {
 	defer c.RUnlock()
 
 	return c.LastCommit.MakeCommit()
+}
+
+// RecvMsg accepts a ConsensusMessage and delivers it to receiveRoutine
+func (c *Core) RecvMsg(msg message.ConsensusMessage) {
+	if err := msg.ValidateBasic(); err != nil {
+		log.Error(err)
+		return
+	}
+	c.sendInternalMessage(msgInfo{msg})
+
 }
 
 // enterNewRound(height, 0) at c.StartTime.
@@ -656,7 +666,7 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 			// NOTE: our proposal may be nil or not what received a polkaData..
 			if polkaData != message.NilData && (vote.Round == c.Round) {
 				if c.Proposal != nil && c.Proposal.Proposed != polkaData {
-					log.Warnf(
+					log.Warn(
 						"Polka. Valid ProposedData we don't know about. Set Proposal=nil",
 						"expect proposal:", c.Proposal.Proposed, "polkaData proposal", polkaData)
 					// We're getting the wrong proposal.

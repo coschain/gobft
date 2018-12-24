@@ -55,12 +55,12 @@ func TestValidatorsVotes(t *testing.T) {
 	val3.EXPECT().VerifySig(gomock.Any(), gomock.Any()).Return(true).AnyTimes()
 	val4.EXPECT().VerifySig(gomock.Any(), gomock.Any()).Return(true).AnyTimes()
 
-	// init IValidators
+	// init ICommittee
 	curProposers := []*custom.MockIPubValidator{val1, val2, val3, val4}
 	idx := 0
 	var proposedData message.ProposedData = sha256.Sum256([]byte("hello"))
 
-	valSet := custom.NewMockIValidators(ctrl)
+	valSet := custom.NewMockICommittee(ctrl)
 	valSet.EXPECT().GetValidator(pubkey1).Return(val1).AnyTimes()
 	valSet.EXPECT().GetValidator(pubkey2).Return(val2).AnyTimes()
 	valSet.EXPECT().GetValidator(pubkey3).Return(val3).AnyTimes()

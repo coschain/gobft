@@ -33,11 +33,11 @@ go-bft is a BFT library written in go. It's a re-implementation of tendermint bf
   
  In a nutshell, user should implement the following interface:
  ```go
-// IValidators represents a validator group which contains all validators at
-// a certain height. User should typically create a new IValidators and register
+// ICommittee represents a validator group which contains all validators at
+// a certain height. User should typically create a new ICommittee and register
 // it to the bft core before starting a new height consensus process if
 // validators need to be updated
-type IValidators interface {
+type ICommittee interface {
 	GetValidator(key message.PubKey) IPubValidator
 	IsValidator(key message.PubKey) bool
 	TotalVotingPower() int64

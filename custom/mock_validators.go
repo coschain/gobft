@@ -10,31 +10,31 @@ import (
 	reflect "reflect"
 )
 
-// MockIValidators is a mock of IValidators interface
-type MockIValidators struct {
+// MockICommittee is a mock of ICommittee interface
+type MockICommittee struct {
 	ctrl     *gomock.Controller
-	recorder *MockIValidatorsMockRecorder
+	recorder *MockICommitteeMockRecorder
 }
 
-// MockIValidatorsMockRecorder is the mock recorder for MockIValidators
-type MockIValidatorsMockRecorder struct {
-	mock *MockIValidators
+// MockICommitteeMockRecorder is the mock recorder for MockICommittee
+type MockICommitteeMockRecorder struct {
+	mock *MockICommittee
 }
 
-// NewMockIValidators creates a new mock instance
-func NewMockIValidators(ctrl *gomock.Controller) *MockIValidators {
-	mock := &MockIValidators{ctrl: ctrl}
-	mock.recorder = &MockIValidatorsMockRecorder{mock}
+// NewMockICommittee creates a new mock instance
+func NewMockICommittee(ctrl *gomock.Controller) *MockICommittee {
+	mock := &MockICommittee{ctrl: ctrl}
+	mock.recorder = &MockICommitteeMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use
-func (m *MockIValidators) EXPECT() *MockIValidatorsMockRecorder {
+func (m *MockICommittee) EXPECT() *MockICommitteeMockRecorder {
 	return m.recorder
 }
 
 // GetValidator mocks base method
-func (m *MockIValidators) GetValidator(key message.PubKey) IPubValidator {
+func (m *MockICommittee) GetValidator(key message.PubKey) IPubValidator {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetValidator", key)
 	ret0, _ := ret[0].(IPubValidator)
@@ -42,13 +42,13 @@ func (m *MockIValidators) GetValidator(key message.PubKey) IPubValidator {
 }
 
 // GetValidator indicates an expected call of GetValidator
-func (mr *MockIValidatorsMockRecorder) GetValidator(key interface{}) *gomock.Call {
+func (mr *MockICommitteeMockRecorder) GetValidator(key interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetValidator", reflect.TypeOf((*MockIValidators)(nil).GetValidator), key)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetValidator", reflect.TypeOf((*MockICommittee)(nil).GetValidator), key)
 }
 
 // IsValidator mocks base method
-func (m *MockIValidators) IsValidator(key message.PubKey) bool {
+func (m *MockICommittee) IsValidator(key message.PubKey) bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IsValidator", key)
 	ret0, _ := ret[0].(bool)
@@ -56,13 +56,13 @@ func (m *MockIValidators) IsValidator(key message.PubKey) bool {
 }
 
 // IsValidator indicates an expected call of IsValidator
-func (mr *MockIValidatorsMockRecorder) IsValidator(key interface{}) *gomock.Call {
+func (mr *MockICommitteeMockRecorder) IsValidator(key interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsValidator", reflect.TypeOf((*MockIValidators)(nil).IsValidator), key)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsValidator", reflect.TypeOf((*MockICommittee)(nil).IsValidator), key)
 }
 
 // TotalVotingPower mocks base method
-func (m *MockIValidators) TotalVotingPower() int64 {
+func (m *MockICommittee) TotalVotingPower() int64 {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "TotalVotingPower")
 	ret0, _ := ret[0].(int64)
@@ -70,13 +70,13 @@ func (m *MockIValidators) TotalVotingPower() int64 {
 }
 
 // TotalVotingPower indicates an expected call of TotalVotingPower
-func (mr *MockIValidatorsMockRecorder) TotalVotingPower() *gomock.Call {
+func (mr *MockICommitteeMockRecorder) TotalVotingPower() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TotalVotingPower", reflect.TypeOf((*MockIValidators)(nil).TotalVotingPower))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TotalVotingPower", reflect.TypeOf((*MockICommittee)(nil).TotalVotingPower))
 }
 
 // GetCurrentProposer mocks base method
-func (m *MockIValidators) GetCurrentProposer() message.PubKey {
+func (m *MockICommittee) GetCurrentProposer() message.PubKey {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetCurrentProposer")
 	ret0, _ := ret[0].(message.PubKey)
@@ -84,13 +84,13 @@ func (m *MockIValidators) GetCurrentProposer() message.PubKey {
 }
 
 // GetCurrentProposer indicates an expected call of GetCurrentProposer
-func (mr *MockIValidatorsMockRecorder) GetCurrentProposer() *gomock.Call {
+func (mr *MockICommitteeMockRecorder) GetCurrentProposer() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCurrentProposer", reflect.TypeOf((*MockIValidators)(nil).GetCurrentProposer))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCurrentProposer", reflect.TypeOf((*MockICommittee)(nil).GetCurrentProposer))
 }
 
 // DecidesProposal mocks base method
-func (m *MockIValidators) DecidesProposal() message.ProposedData {
+func (m *MockICommittee) DecidesProposal() message.ProposedData {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DecidesProposal")
 	ret0, _ := ret[0].(message.ProposedData)
@@ -98,13 +98,13 @@ func (m *MockIValidators) DecidesProposal() message.ProposedData {
 }
 
 // DecidesProposal indicates an expected call of DecidesProposal
-func (mr *MockIValidatorsMockRecorder) DecidesProposal() *gomock.Call {
+func (mr *MockICommitteeMockRecorder) DecidesProposal() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DecidesProposal", reflect.TypeOf((*MockIValidators)(nil).DecidesProposal))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DecidesProposal", reflect.TypeOf((*MockICommittee)(nil).DecidesProposal))
 }
 
 // Commit mocks base method
-func (m *MockIValidators) Commit(p message.ProposedData) error {
+func (m *MockICommittee) Commit(p message.ProposedData) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Commit", p)
 	ret0, _ := ret[0].(error)
@@ -112,13 +112,13 @@ func (m *MockIValidators) Commit(p message.ProposedData) error {
 }
 
 // Commit indicates an expected call of Commit
-func (mr *MockIValidatorsMockRecorder) Commit(p interface{}) *gomock.Call {
+func (mr *MockICommitteeMockRecorder) Commit(p interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockIValidators)(nil).Commit), p)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockICommittee)(nil).Commit), p)
 }
 
 // GetAppState mocks base method
-func (m *MockIValidators) GetAppState() *message.AppState {
+func (m *MockICommittee) GetAppState() *message.AppState {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAppState")
 	ret0, _ := ret[0].(*message.AppState)
@@ -126,13 +126,13 @@ func (m *MockIValidators) GetAppState() *message.AppState {
 }
 
 // GetAppState indicates an expected call of GetAppState
-func (mr *MockIValidatorsMockRecorder) GetAppState() *gomock.Call {
+func (mr *MockICommitteeMockRecorder) GetAppState() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAppState", reflect.TypeOf((*MockIValidators)(nil).GetAppState))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAppState", reflect.TypeOf((*MockICommittee)(nil).GetAppState))
 }
 
 // BroadCast mocks base method
-func (m *MockIValidators) BroadCast(v message.ConsensusMessage) error {
+func (m *MockICommittee) BroadCast(v message.ConsensusMessage) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "BroadCast", v)
 	ret0, _ := ret[0].(error)
@@ -140,9 +140,9 @@ func (m *MockIValidators) BroadCast(v message.ConsensusMessage) error {
 }
 
 // BroadCast indicates an expected call of BroadCast
-func (mr *MockIValidatorsMockRecorder) BroadCast(v interface{}) *gomock.Call {
+func (mr *MockICommitteeMockRecorder) BroadCast(v interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BroadCast", reflect.TypeOf((*MockIValidators)(nil).BroadCast), v)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BroadCast", reflect.TypeOf((*MockICommittee)(nil).BroadCast), v)
 }
 
 // MockIPubValidator is a mock of IPubValidator interface
