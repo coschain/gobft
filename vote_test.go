@@ -1,11 +1,11 @@
-package go_bft
+package gobft
 
 import (
 	"crypto/sha256"
 	"testing"
 
-	"github.com/coschain/go-bft/custom"
-	"github.com/coschain/go-bft/message"
+	"github.com/coschain/gobft/custom"
+	"github.com/coschain/gobft/message"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )

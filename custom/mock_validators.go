@@ -5,7 +5,7 @@
 package custom
 
 import (
-	message "github.com/coschain/go-bft/message"
+	message "github.com/coschain/gobft/message"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
 )

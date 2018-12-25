@@ -1,10 +1,10 @@
-package go_bft
+package gobft
 
 import (
 	"sync"
 
-	"github.com/coschain/go-bft/custom"
-	"github.com/coschain/go-bft/message"
+	"github.com/coschain/gobft/custom"
+	"github.com/coschain/gobft/message"
 	log "github.com/sirupsen/logrus"
 )
 

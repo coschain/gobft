@@ -1,5 +1,5 @@
-# go-bft
-go-bft is a BFT library written in go. It's a re-implementation of tendermint bft.
+# gobft
+gobft is a BFT library written in go. It's a re-implementation of tendermint bft.
 ![cmd-markdown-logo](resource/tmbft.jpeg)
 
 # Terminology

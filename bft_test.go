@@ -1,15 +1,14 @@
-package go_bft
+package gobft
 
 import (
 	"crypto/sha256"
 	"strconv"
 	"testing"
 
-	"github.com/sirupsen/logrus"
-
-	"github.com/coschain/go-bft/custom"
-	"github.com/coschain/go-bft/message"
+	"github.com/coschain/gobft/custom"
+	"github.com/coschain/gobft/message"
 	"github.com/golang/mock/gomock"
+	"github.com/sirupsen/logrus"
 )
 
 const nodeNum = 4
@@ -51,7 +50,9 @@ func TestBFT(t *testing.T) {
 	var indeces [nodeNum]int
 	var proposedData message.ProposedData = sha256.Sum256([]byte("hello"))
 	var committees [nodeNum]*custom.MockICommittee
-	for i := 0; i < nodeNum; i++ {
+	for j := 0; j < nodeNum; j++ {
+		i := j
+		indeces[i] = 0
 		committees[i] = custom.NewMockICommittee(ctrl)
 		committees[i].EXPECT().GetValidator(pubKeys[i]).Return(pubVals[i]).AnyTimes()
 		committees[i].EXPECT().IsValidator(gomock.Any()).Return(true).AnyTimes()
@@ -81,6 +82,7 @@ func TestBFT(t *testing.T) {
 	var cores [nodeNum]*Core
 	for i := 0; i < nodeNum; i++ {
 		cores[i] = NewCore(committees[i], privVals[i])
+		cores[i].SetName("core" + strconv.Itoa(i))
 	}
 	for i := 0; i < nodeNum; i++ {
 		cores[i].validators.CustomValidators.(*custom.MockICommittee).EXPECT().

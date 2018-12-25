@@ -1,7 +1,7 @@
 package custom
 
 import (
-	"github.com/coschain/go-bft/message"
+	"github.com/coschain/gobft/message"
 )
 
 /*

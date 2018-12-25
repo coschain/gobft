@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/coschain/go-bft/common"
+	"github.com/coschain/gobft/common"
 )
 
 // PubKey is string representation of the public key
@@ -36,7 +36,7 @@ const (
 // IsVoteTypeValid returns true if t is a valid vote type.
 func IsVoteTypeValid(t VoteType) bool {
 	switch t {
-	case PrevoteType, PrecommitType:
+	case PrevoteType, PrecommitType, ProposalType:
 		return true
 	default:
 		return false

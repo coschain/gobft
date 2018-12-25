@@ -1,4 +1,4 @@
-package go_bft
+package gobft
 
 import (
 	"fmt"
@@ -7,13 +7,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/coschain/go-bft/common"
-	"github.com/coschain/go-bft/custom"
-	"github.com/coschain/go-bft/message"
+	"github.com/coschain/gobft/common"
+	"github.com/coschain/gobft/custom"
+	"github.com/coschain/gobft/message"
 	log "github.com/sirupsen/logrus"
 )
 
 type Core struct {
+	name       string
 	cfg        *Config
 	validators *Validators
 
@@ -37,6 +38,10 @@ func NewCore(vals custom.ICommittee, pVal custom.IPrivValidator) *Core {
 	}
 
 	return c
+}
+
+func (c *Core) SetName(n string) {
+	c.name = n
 }
 
 func (c *Core) Start() error {
@@ -201,19 +206,19 @@ func (c *Core) handleMsg(mi msgInfo) {
 		// the peer is sending us CatchupCommit precommits.
 		// We could make note of this and help filter in broadcastHasVoteMessage().
 	default:
-		log.Error("Unknown msg type", reflect.TypeOf(msg))
+		log.Error("Unknown msg type ", reflect.TypeOf(msg))
 	}
 	if err != nil {
-		log.Error("Error with msg", "height", c.Height, "round", c.Round, "type", reflect.TypeOf(msg), "err", err, "msg", msg)
+		log.Error("Error with msg ", " height ", c.Height, " round ", c.Round, " type ", reflect.TypeOf(msg), " err ", err, " msg ", msg)
 	}
 }
 
 func (c *Core) handleTimeout(ti timeoutInfo, rs RoundState) {
-	log.Debug("Received tock", "timeout", ti.Duration, "height", ti.Height, "round", ti.Round, "step", ti.Step)
+	log.Debug("Received tock ", " timeout ", ti.Duration, " height ", ti.Height, " round ", ti.Round, " step ", ti.Step)
 
 	// timeouts must be for current height, round, step
 	if ti.Height != rs.Height || ti.Round < rs.Round || (ti.Round == rs.Round && ti.Step < rs.Step) {
-		log.Debug("Ignoring tock because we're ahead", "height", rs.Height, "round", rs.Round, "step", rs.Step)
+		log.Debug("Ignoring tock because we're ahead ", " height ", rs.Height, " round ", rs.Round, " step ", rs.Step)
 		return
 	}
 
@@ -343,10 +348,12 @@ func (c *Core) doPropose(height int64, round int) {
 		proposal.Proposed = c.LockedProposal.Proposed
 	}
 
-	c.Proposal = proposal
 	c.validators.Sign(proposal)
-	c.sendInternalMessage(msgInfo{&message.VoteMessage{proposal}})
-	c.validators.CustomValidators.BroadCast(proposal)
+	c.Proposal = proposal
+
+	vmsg := &message.VoteMessage{proposal}
+	c.sendInternalMessage(msgInfo{vmsg})
+	c.validators.CustomValidators.BroadCast(vmsg)
 }
 
 func (c *Core) enterPrevote(height int64, round int) {
@@ -376,8 +383,9 @@ func (c *Core) signAddVote(vote *message.Vote) {
 		return
 	}
 	c.validators.Sign(vote)
-	c.sendInternalMessage(msgInfo{&message.VoteMessage{vote}})
-	c.validators.CustomValidators.BroadCast(vote)
+	vmsg := &message.VoteMessage{vote}
+	c.sendInternalMessage(msgInfo{vmsg})
+	c.validators.CustomValidators.BroadCast(vmsg)
 }
 
 func (c *Core) sendInternalMessage(mi msgInfo) {
@@ -588,7 +596,7 @@ func (c *Core) tryAddVote(vote *message.Vote) (bool, error) {
 		} else {
 			// Probably an invalid signature / Bad peer.
 			// Seems this can also err sometimes with "Unexpected step" - perhaps not from a bad peer ?
-			log.Error("Error attempting to add vote", "err", err)
+			log.Error("Error attempting to add vote", " err ", err)
 			return added, ErrAddingVote
 		}
 	}
@@ -631,6 +639,11 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 		return
 	}
 
+	if vote.Type == message.ProposalType {
+		err = c.defaultSetProposal(vote)
+		return
+	}
+
 	height := c.Height
 	added, err = c.Votes.AddVote(vote)
 	if !added {
@@ -638,8 +651,6 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 	}
 
 	switch vote.Type {
-	case message.ProposalType:
-		err = c.defaultSetProposal(vote)
 	case message.PrevoteType:
 		prevotes := c.Votes.Prevotes(vote.Round)
 		log.Info("Added to prevote", "vote", vote, "prevotes", prevotes.String())
@@ -747,6 +758,8 @@ func (c *Core) defaultSetProposal(proposal *message.Vote) error {
 
 	// check if proposal is from the current proposer
 	if c.validators.CustomValidators.GetCurrentProposer() != proposal.Address {
+		log.Errorf("[%s]invalid proposer. want %v, got %v", c.name,
+			c.validators.CustomValidators.GetCurrentProposer(), proposal.Address)
 		return ErrInvalidProposer
 	}
 

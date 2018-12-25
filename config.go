@@ -1,4 +1,4 @@
-package go_bft
+package gobft
 
 import (
 	"time"

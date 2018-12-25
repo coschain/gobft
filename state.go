@@ -1,10 +1,10 @@
-package go_bft
+package gobft
 
 import (
 	"fmt"
 	"time"
 
-	"github.com/coschain/go-bft/message"
+	"github.com/coschain/gobft/message"
 )
 
 // RoundStepType enumerates the state of the consensus state machine

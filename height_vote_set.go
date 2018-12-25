@@ -1,4 +1,4 @@
-package go_bft
+package gobft
 
 import (
 	"errors"
@@ -6,8 +6,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/coschain/go-bft/common"
-	"github.com/coschain/go-bft/message"
+	"github.com/coschain/gobft/common"
+	"github.com/coschain/gobft/message"
 )
 
 type RoundVoteSet struct {
