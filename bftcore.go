@@ -10,7 +10,7 @@ import (
 	"github.com/coschain/gobft/common"
 	"github.com/coschain/gobft/custom"
 	"github.com/coschain/gobft/message"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 type Core struct {
@@ -25,23 +25,29 @@ type Core struct {
 	timeoutTicker TimeoutTicker
 	done          chan struct{}
 
+	log *logrus.Entry
+
 	sync.RWMutex
 }
 
 func NewCore(vals custom.ICommittee, pVal custom.IPrivValidator) *Core {
 	c := &Core{
-		cfg:           DefaultConfig(),
-		validators:    NewValidators(vals, pVal),
-		msgQueue:      make(chan msgInfo, msgQueueSize),
-		timeoutTicker: NewTimeoutTicker(),
-		done:          make(chan struct{}),
+		cfg:        DefaultConfig(),
+		validators: NewValidators(vals, pVal),
+		msgQueue:   make(chan msgInfo, msgQueueSize),
+		//timeoutTicker: NewTimeoutTicker(),
+		done: make(chan struct{}),
 	}
+	c.timeoutTicker = NewTimeoutTicker(c)
+	logrus.SetLevel(logrus.DebugLevel)
+	c.log = logrus.WithField("CoreName", c.name)
 
 	return c
 }
 
 func (c *Core) SetName(n string) {
 	c.name = n
+	c.log = logrus.WithField("CoreName", c.name)
 }
 
 func (c *Core) Start() error {
@@ -80,7 +86,7 @@ func (c *Core) GetLastCommit() *message.Commit {
 // RecvMsg accepts a ConsensusMessage and delivers it to receiveRoutine
 func (c *Core) RecvMsg(msg message.ConsensusMessage) {
 	if err := msg.ValidateBasic(); err != nil {
-		log.Error(err)
+		c.log.Error(err)
 		return
 	}
 	c.sendInternalMessage(msgInfo{msg})
@@ -89,7 +95,7 @@ func (c *Core) RecvMsg(msg message.ConsensusMessage) {
 
 // enterNewRound(height, 0) at c.StartTime.
 func (c *Core) scheduleRound0(rs *RoundState) {
-	log.Info("scheduleRound0", " now ", common.Now(), " startTime ", c.StartTime)
+	c.log.Info("scheduleRound0", " now ", common.Now(), " startTime ", c.StartTime)
 	sleepDuration := rs.StartTime.Sub(common.Now()) // nolint: gotype, gosimple
 	c.scheduleTimeout(sleepDuration, rs.Height, 0, RoundStepNewHeight)
 }
@@ -150,7 +156,7 @@ func (c *Core) receiveRoutine() {
 
 	defer func() {
 		if r := recover(); r != nil {
-			log.Error("CONSENSUS FAILURE!!!", " err ", r, " stack ", string(debug.Stack()))
+			c.log.Error("CONSENSUS FAILURE!!!", " err ", r, " stack ", string(debug.Stack()))
 			// stop gracefully
 			//
 			// NOTE: We most probably shouldn't be running any further when there is
@@ -181,7 +187,7 @@ func (c *Core) receiveRoutine() {
 func (c *Core) handleMsg(mi msgInfo) {
 	c.Lock()
 	defer c.Unlock()
-
+	c.log.Debug("handleMsg: ", mi.Msg)
 	var err error
 	msg := mi.Msg
 	switch msg := msg.(type) {
@@ -206,19 +212,19 @@ func (c *Core) handleMsg(mi msgInfo) {
 		// the peer is sending us CatchupCommit precommits.
 		// We could make note of this and help filter in broadcastHasVoteMessage().
 	default:
-		log.Error("Unknown msg type ", reflect.TypeOf(msg))
+		c.log.Error("Unknown msg type ", reflect.TypeOf(msg))
 	}
 	if err != nil {
-		log.Error("Error with msg ", " height ", c.Height, " round ", c.Round, " type ", reflect.TypeOf(msg), " err ", err, " msg ", msg)
+		c.log.Error("Error with msg ", " height ", c.Height, " round ", c.Round, " type ", reflect.TypeOf(msg), " err ", err, " msg ", msg)
 	}
 }
 
 func (c *Core) handleTimeout(ti timeoutInfo, rs RoundState) {
-	log.Debug("Received tock ", " timeout ", ti.Duration, " height ", ti.Height, " round ", ti.Round, " step ", ti.Step)
+	c.log.Debug("Received tock ", " timeout ", ti.Duration, " height ", ti.Height, " round ", ti.Round, " step ", ti.Step)
 
 	// timeouts must be for current height, round, step
 	if ti.Height != rs.Height || ti.Round < rs.Round || (ti.Round == rs.Round && ti.Step < rs.Step) {
-		log.Debug("Ignoring tock because we're ahead ", " height ", rs.Height, " round ", rs.Round, " step ", rs.Step)
+		c.log.Debug("Ignoring tock because we're ahead ", " height ", rs.Height, " round ", rs.Round, " step ", rs.Step)
 		return
 	}
 
@@ -257,15 +263,15 @@ func (c *Core) handleTimeout(ti timeoutInfo, rs RoundState) {
 // NOTE: c.StartTime was already set for height.
 func (c *Core) enterNewRound(height int64, round int) {
 	if c.Height != height || round < c.Round || (c.Round == round && c.Step != RoundStepNewHeight) {
-		log.Debug(fmt.Sprintf("enterNewRound(%v/%v): Invalid args. Current step: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
+		c.log.Debug(fmt.Sprintf("enterNewRound(%v/%v): Invalid args. Current step: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
 		return
 	}
 
 	if now := common.Now(); c.StartTime.After(now) {
-		log.Info("Need to set a buffer and log message here for sanity.", "startTime", c.StartTime, "now", now)
+		c.log.Info("Need to set a buffer and c.log message here for sanity.", "startTime", c.StartTime, "now", now)
 	}
 
-	log.Info(fmt.Sprintf("enterNewRound(%v/%v). Current: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
+	c.log.Info(fmt.Sprintf("enterNewRound(%v/%v). Current: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
 
 	// Setup new round
 	// we don't fire newStep for this step,
@@ -276,7 +282,7 @@ func (c *Core) enterNewRound(height int64, round int) {
 		// and meanwhile we might have received a proposal
 		// for round 0.
 	} else {
-		log.Infof("Resetting Proposal info, height %d, round %d", height, round)
+		c.log.Infof("Resetting Proposal info, height %d, round %d", height, round)
 		c.Proposal = nil
 	}
 	c.Votes.SetRound(round + 1) // also track next round (round+1) to allow round-skipping
@@ -304,10 +310,10 @@ func (c *Core) isValidator() bool {
 // Enter (!CreateEmptyBlocks) : after enterNewRound(height,round), once txs are in the mempool
 func (c *Core) enterPropose(height int64, round int) {
 	if c.Height != height || round < c.Round || (c.Round == round && RoundStepPropose <= c.Step) {
-		log.Debug(fmt.Sprintf("enterPropose(%v/%v): Invalid args. Current step: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
+		c.log.Debug(fmt.Sprintf("enterPropose(%v/%v): Invalid args. Current step: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
 		return
 	}
-	log.Info(fmt.Sprintf("enterPropose(%v/%v). Current: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
+	c.log.Info(fmt.Sprintf("enterPropose(%v/%v). Current: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
 
 	defer func() {
 		// Done enterPropose:
@@ -327,15 +333,15 @@ func (c *Core) enterPropose(height int64, round int) {
 	self := c.validators.GetSelfPubKey()
 	// Nothing more to do if we're not a validator
 	if !c.validators.CustomValidators.IsValidator(self) {
-		log.Debug("This node is not a validator")
+		c.log.Debug("This node is not a validator")
 		return
 	}
 
 	if c.validators.CustomValidators.GetCurrentProposer() == self {
-		log.Info("enterPropose: Our turn to propose", " proposer ", self)
+		c.log.Info("enterPropose: Our turn to propose", " proposer ", self)
 		c.doPropose(height, round)
 	} else {
-		log.Info("enterPropose: Not our turn to propose", " proposer ",
+		c.log.Info("enterPropose: Not our turn to propose", " proposer ",
 			c.validators.CustomValidators.GetCurrentProposer(), " self ", self)
 	}
 }
@@ -358,7 +364,7 @@ func (c *Core) doPropose(height int64, round int) {
 
 func (c *Core) enterPrevote(height int64, round int) {
 	if c.Height != height || round < c.Round || (c.Round == round && RoundStepPrevote <= c.Step) {
-		log.Debug(fmt.Sprintf("enterPrevote(%v/%v): Invalid args. Current step: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
+		c.log.Debug(fmt.Sprintf("enterPrevote(%v/%v): Invalid args. Current step: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
 		return
 	}
 
@@ -367,7 +373,7 @@ func (c *Core) enterPrevote(height int64, round int) {
 		c.updateRoundStep(round, RoundStepPrevote)
 	}()
 
-	log.Info(fmt.Sprintf("enterPrevote(%v/%v). Current: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
+	c.log.Info(fmt.Sprintf("enterPrevote(%v/%v). Current: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
 
 	// Sign and broadcast vote as necessary
 	c.doPrevote(height, round)
@@ -391,12 +397,13 @@ func (c *Core) signAddVote(vote *message.Vote) {
 func (c *Core) sendInternalMessage(mi msgInfo) {
 	select {
 	case c.msgQueue <- mi:
+		c.log.Debugf("recv %v", mi.Msg)
 	default:
 		// NOTE: using the go-routine means our votes can
 		// be processed out of order.
 		// TODO: use CList here for strict determinism and
 		// attempt push to internalMsgQueue in receiveRoutine
-		log.Info("Internal msg queue is full. Using a go-routine")
+		c.log.Info("Internal msg queue is full. Using a go-routine")
 		go func() { c.msgQueue <- mi }()
 	}
 }
@@ -404,7 +411,7 @@ func (c *Core) sendInternalMessage(mi msgInfo) {
 func (c *Core) doPrevote(height int64, round int) {
 	var prevote *message.Vote
 	if c.LockedRound >= 0 && c.LockedProposal != nil {
-		log.Info("enterPrevote: vote for POLed proposal: ", c.LockedProposal.Proposed)
+		c.log.Info("enterPrevote: vote for POLed proposal: ", c.LockedProposal.Proposed)
 		prevote = message.NewVote(message.PrevoteType, c.Height, c.Round, &c.LockedProposal.Proposed)
 		//c.validators.Sign(prevote)
 		//c.sendInternalMessage(msgInfo{&message.VoteMessage{prevote}})
@@ -413,6 +420,7 @@ func (c *Core) doPrevote(height int64, round int) {
 		c.Proposal.Proposed == c.validators.CustomValidators.DecidesProposal() {
 		prevote = message.NewVote(message.PrevoteType, c.Height, c.Round, &c.Proposal.Proposed)
 	} else {
+		c.log.Info("enterPrevote: vote for nil")
 		prevote = message.NewVote(message.PrevoteType, c.Height, c.Round, &message.NilData)
 	}
 
@@ -421,13 +429,13 @@ func (c *Core) doPrevote(height int64, round int) {
 
 func (c *Core) enterPrevoteWait(height int64, round int) {
 	if c.Height != height || round < c.Round || (c.Round == round && RoundStepPrevoteWait <= c.Step) {
-		log.Debug(fmt.Sprintf("enterPrevoteWait(%v/%v): Invalid args. Current step: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
+		c.log.Debug(fmt.Sprintf("enterPrevoteWait(%v/%v): Invalid args. Current step: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
 		return
 	}
 	if !c.Votes.Prevotes(round).HasTwoThirdsAny() {
 		common.PanicSanity(fmt.Sprintf("enterPrevoteWait(%v/%v), but Prevotes does not have any +2/3 votes", height, round))
 	}
-	log.Info(fmt.Sprintf("enterPrevoteWait(%v/%v). Current: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
+	c.log.Info(fmt.Sprintf("enterPrevoteWait(%v/%v). Current: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
 
 	defer func() {
 		// Done enterPrevoteWait:
@@ -440,11 +448,11 @@ func (c *Core) enterPrevoteWait(height int64, round int) {
 
 func (c *Core) enterPrecommit(height int64, round int) {
 	if c.Height != height || round < c.Round || (c.Round == round && RoundStepPrecommit <= c.Step) {
-		log.Debug(fmt.Sprintf("enterPrecommit(%v/%v): Invalid args. Current step: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
+		c.log.Debug(fmt.Sprintf("enterPrecommit(%v/%v): Invalid args. Current step: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
 		return
 	}
 
-	log.Info(fmt.Sprintf("enterPrecommit(%v/%v). Current: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
+	c.log.Info(fmt.Sprintf("enterPrecommit(%v/%v). Current: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
 
 	defer func() {
 		// Done enterPrecommit:
@@ -458,9 +466,9 @@ func (c *Core) enterPrecommit(height int64, round int) {
 	// If we don't have a polkaData, we must precommit nil.
 	if !ok {
 		if c.LockedProposal != nil {
-			log.Info("enterPrecommit: No +2/3 prevotes during enterPrecommit while we're locked. Precommitting nil")
+			c.log.Info("enterPrecommit: No +2/3 prevotes during enterPrecommit while we're locked. Precommitting nil")
 		} else {
-			log.Info("enterPrecommit: No +2/3 prevotes during enterPrecommit. Precommitting nil.")
+			c.log.Info("enterPrecommit: No +2/3 prevotes during enterPrecommit. Precommitting nil.")
 		}
 		c.signAddVote(precommit)
 		return
@@ -475,9 +483,9 @@ func (c *Core) enterPrecommit(height int64, round int) {
 	// +2/3 prevoted nil. Unlock and precommit nil.
 	if polkaData == message.NilData {
 		if c.LockedProposal == nil {
-			log.Info("enterPrecommit: +2/3 prevoted for nil.")
+			c.log.Info("enterPrecommit: +2/3 prevoted for nil.")
 		} else {
-			log.Info("enterPrecommit: +2/3 prevoted for nil. Unlocking")
+			c.log.Info("enterPrecommit: +2/3 prevoted for nil. Unlocking")
 			c.LockedRound = -1
 			c.LockedProposal = nil
 		}
@@ -489,7 +497,7 @@ func (c *Core) enterPrecommit(height int64, round int) {
 
 	// If we're already locked on that proposed data, precommit it, and update the LockedRound
 	if c.LockedRound >= 0 && c.LockedProposal.Proposed == polkaData {
-		log.Info("enterPrecommit: +2/3 prevoted locked block. Relocking")
+		c.log.Info("enterPrecommit: +2/3 prevoted locked block. Relocking")
 		c.LockedRound = round
 		precommit.Proposed = polkaData
 		c.signAddVote(precommit)
@@ -498,7 +506,7 @@ func (c *Core) enterPrecommit(height int64, round int) {
 
 	// If +2/3 prevoted for proposal block, stage and precommit it
 	if c.Proposal != nil && c.Proposal.Proposed == polkaData {
-		log.Info("enterPrecommit: +2/3 prevoted proposal block. Locking", "proposed", polkaData)
+		c.log.Info("enterPrecommit: +2/3 prevoted proposal block. Locking", " proposed ", polkaData)
 		c.LockedRound = round
 		c.LockedProposal = c.Proposal
 		precommit.Proposed = polkaData
@@ -516,7 +524,7 @@ func (c *Core) enterPrecommit(height int64, round int) {
 			c.LockedProposal.Proposed, polkaData))
 	}
 
-	log.Errorf("Got a polkaData %v but we don't have its proposal", polkaData)
+	c.log.Errorf("Got a polkaData %v but we don't have its proposal", polkaData)
 	c.LockedRound = -1
 	c.LockedProposal = nil
 
@@ -525,7 +533,7 @@ func (c *Core) enterPrecommit(height int64, round int) {
 
 func (c *Core) enterPrecommitWait(height int64, round int) {
 	if c.Height != height || round < c.Round || (c.Round == round && c.triggeredTimeoutPrecommit) {
-		log.Debug(
+		c.log.Debug(
 			fmt.Sprintf(
 				"enterPrecommitWait(%v/%v): Invalid args. "+
 					"Current state is Height/Round: %v/%v/, triggeredTimeoutPrecommit:%v",
@@ -535,7 +543,7 @@ func (c *Core) enterPrecommitWait(height int64, round int) {
 	if !c.Votes.Precommits(round).HasTwoThirdsAny() {
 		common.PanicSanity(fmt.Sprintf("enterPrecommitWait(%v/%v), but Precommits does not have any +2/3 votes", height, round))
 	}
-	log.Info(fmt.Sprintf("enterPrecommitWait(%v/%v). Current: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
+	c.log.Info(fmt.Sprintf("enterPrecommitWait(%v/%v). Current: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
 
 	defer func() {
 		// Done enterPrecommitWait:
@@ -548,16 +556,10 @@ func (c *Core) enterPrecommitWait(height int64, round int) {
 
 func (c *Core) enterCommit(height int64, commitRound int) {
 	if c.Height != height || RoundStepCommit <= c.Step {
-		log.Debug(fmt.Sprintf("enterCommit(%v/%v): Invalid args. Current step: %v/%v/%v", height, commitRound, c.Height, c.Round, c.Step))
+		c.log.Debug(fmt.Sprintf("enterCommit(%v/%v): Invalid args. Current step: %v/%v/%v", height, commitRound, c.Height, c.Round, c.Step))
 		return
 	}
-	log.Info(fmt.Sprintf("enterCommit(%v/%v). Current: %v/%v/%v", height, commitRound, c.Height, c.Round, c.Step))
-
-	defer func() {
-		// Done enterCommit:
-		// keep c.Round the same, commitRound points to the right Precommits set.
-		c.updateRoundStep(c.Round, RoundStepCommit)
-	}()
+	c.log.Info(fmt.Sprintf("enterCommit(%v/%v). Current: %v/%v/%v", height, commitRound, c.Height, c.Round, c.Step))
 
 	maj23, ok := c.Votes.Precommits(commitRound).TwoThirdsMajority()
 	if !ok {
@@ -566,6 +568,8 @@ func (c *Core) enterCommit(height int64, commitRound int) {
 
 	c.CommitRound = commitRound
 	c.CommitTime = common.Now()
+
+	c.updateRoundStep(c.Round, RoundStepCommit)
 
 	// Maybe finalize immediately.
 	c.doCommit(maj23)
@@ -585,6 +589,7 @@ func (c *Core) doCommit(data message.ProposedData) {
 func (c *Core) tryAddVote(vote *message.Vote) (bool, error) {
 	added, err := c.addVote(vote)
 	if err != nil {
+		c.log.Error("---addVote ", err)
 		// If the vote height is off, we'll just ignore it,
 		// But if it's a conflicting sig, add it to the c.evpool.
 		// If it's otherwise invalid, punish peer.
@@ -596,7 +601,7 @@ func (c *Core) tryAddVote(vote *message.Vote) (bool, error) {
 		} else {
 			// Probably an invalid signature / Bad peer.
 			// Seems this can also err sometimes with "Unexpected step" - perhaps not from a bad peer ?
-			log.Error("Error attempting to add vote", " err ", err)
+			c.log.Error("Error attempting to add vote", " err ", err)
 			return added, ErrAddingVote
 		}
 	}
@@ -604,7 +609,7 @@ func (c *Core) tryAddVote(vote *message.Vote) (bool, error) {
 }
 
 func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
-	log.Debug("addVote", "voteHeight", vote.Height, "voteType", vote.Type, "cHeight", c.Height)
+	c.log.Debug("addVote ", " voteHeight ", vote.Height, " voteType ", vote.Type, " cHeight ", c.Height)
 
 	// A precommit for the previous height?
 	// These come in while we wait timeoutCommit
@@ -619,7 +624,7 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 			return added, err
 		}
 
-		log.Info(fmt.Sprintf("Added to lastPrecommits: %v", c.LastCommit.String()))
+		c.log.Info(fmt.Sprintf("Added to lastPrecommits: %v", c.LastCommit.String()))
 
 		// if we can skip timeoutCommit and have all the votes now,
 		if c.cfg.SkipTimeoutCommit && c.LastCommit.HasAll() {
@@ -635,11 +640,12 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 	// Not necessarily a bad peer, but not favourable behaviour.
 	if vote.Height != c.Height {
 		err = ErrVoteHeightMismatch
-		log.Info("Vote ignored and not added", "voteHeight", vote.Height, "cHeight", c.Height, "err", err)
+		c.log.Info("Vote ignored and not added", "voteHeight", vote.Height, "cHeight", c.Height, "err", err)
 		return
 	}
 
 	if vote.Type == message.ProposalType {
+		c.log.Debug("defaultSetProposal")
 		err = c.defaultSetProposal(vote)
 		return
 	}
@@ -653,7 +659,7 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 	switch vote.Type {
 	case message.PrevoteType:
 		prevotes := c.Votes.Prevotes(vote.Round)
-		log.Info("Added to prevote", "vote", vote, "prevotes", prevotes.String())
+		c.log.Info("Added to prevote", " vote ", vote, " prevotes ", prevotes.String())
 
 		// If +2/3 prevotes for a block or nil for *any* round:
 		if polkaData, ok := prevotes.TwoThirdsMajority(); ok {
@@ -669,7 +675,7 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 				(vote.Round <= c.Round) &&
 				c.LockedProposal.Proposed != polkaData {
 
-				log.Info("Unlocking because of POL.", "lockedRound", c.LockedRound, "POLRound", vote.Round)
+				c.log.Info("Unlocking because of POL.", " lockedRound ", c.LockedRound, " POLRound ", vote.Round)
 				c.LockedRound = -1
 				c.LockedProposal = nil
 			}
@@ -677,9 +683,9 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 			// NOTE: our proposal may be nil or not what received a polkaData..
 			if polkaData != message.NilData && (vote.Round == c.Round) {
 				if c.Proposal != nil && c.Proposal.Proposed != polkaData {
-					log.Warn(
+					c.log.Warn(
 						"Polka. Valid ProposedData we don't know about. Set Proposal=nil",
-						"expect proposal:", c.Proposal.Proposed, "polkaData proposal", polkaData)
+						"expect proposal:", c.Proposal.Proposed, " polkaData proposal ", polkaData)
 					// We're getting the wrong proposal.
 					c.Proposal = nil
 				}
@@ -700,7 +706,7 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 				if c.Proposal != nil || polkaData == message.NilData {
 					c.enterPrecommit(height, vote.Round)
 				} else {
-					log.Errorf("received polkaData %v, but we didn't get the right proposal. height: %d, round: %d", polkaData, c.Height, c.Round)
+					c.log.Errorf("received polkaData %v, but we didn't get the right proposal. height: %d, round: %d", polkaData, c.Height, c.Round)
 				}
 			} else if prevotes.HasTwoThirdsAny() {
 				c.enterPrevoteWait(height, vote.Round)
@@ -710,13 +716,13 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 			if c.Proposal != nil {
 				c.enterPrevote(height, c.Round)
 			} else {
-				log.Errorf("receive prevote for ProposedData (%v), but we don't have proposal", vote.Proposed)
+				c.log.Errorf("receive prevote for ProposedData (%v), but we don't have proposal", vote.Proposed)
 			}
 		}
 
 	case message.PrecommitType:
 		precommits := c.Votes.Precommits(vote.Round)
-		log.Info("Added to precommit", "vote", vote, "precommits", precommits.String())
+		c.log.Info("Added to precommit", " vote ", vote, " precommits ", precommits.String())
 
 		maj23, ok := precommits.TwoThirdsMajority()
 		if ok {
@@ -746,25 +752,27 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 func (c *Core) defaultSetProposal(proposal *message.Vote) error {
 	// Already have one
 	if c.Proposal != nil {
-		log.Warnf("Already got proposal %v from %s, get another proposal %v from %s",
+		c.log.Warnf("Already got proposal %v from %s, get another proposal %v from %s",
 			c.Proposal.Proposed, c.Proposal.Address, proposal.Proposed, proposal.Address)
 		return nil
 	}
 
 	// Does not apply
 	if proposal.Height != c.Height || proposal.Round != c.Round {
+		c.log.Error("mismatch ", proposal)
 		return nil
 	}
 
 	// check if proposal is from the current proposer
 	if c.validators.CustomValidators.GetCurrentProposer() != proposal.Address {
-		log.Errorf("[%s]invalid proposer. want %v, got %v", c.name,
+		c.log.Errorf("invalid proposer. want %v, got %v",
 			c.validators.CustomValidators.GetCurrentProposer(), proposal.Address)
 		return ErrInvalidProposer
 	}
 
 	// Verify signature
 	if !c.validators.VerifySignature(proposal) {
+		c.log.Error("invalid sig ", proposal)
 		return ErrInvalidProposalSignature
 	}
 
@@ -772,7 +780,7 @@ func (c *Core) defaultSetProposal(proposal *message.Vote) error {
 	if proposal.Proposed == c.validators.CustomValidators.DecidesProposal() {
 		c.Proposal = proposal
 	}
-	log.Info("Received proposal", "proposal", proposal)
+	c.log.Info("Received proposal", "proposal", proposal)
 	return nil
 }
 

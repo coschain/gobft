@@ -2,6 +2,7 @@ package gobft
 
 import (
 	"crypto/sha256"
+	"fmt"
 	"strconv"
 	"testing"
 
@@ -11,7 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const nodeNum = 4
+const nodeNum = 1
 
 func TestBFT(t *testing.T) {
 	ctrl := gomock.NewController(t)
@@ -20,7 +21,8 @@ func TestBFT(t *testing.T) {
 	// init IPubValidator and IPrivValidator
 	var pubKeys [nodeNum]message.PubKey
 	var pubVals [nodeNum]*custom.MockIPubValidator
-	for i := 0; i < nodeNum; i++ {
+	for j := 0; j < nodeNum; j++ {
+		i := j
 		pubKeys[i] = message.PubKey("val_pubkey" + strconv.Itoa(i))
 		pubVals[i] = custom.NewMockIPubValidator(ctrl)
 		pubVals[i].EXPECT().GetVotingPower().Return(int64(1)).AnyTimes()
@@ -29,7 +31,8 @@ func TestBFT(t *testing.T) {
 	}
 
 	var privVals [nodeNum]*custom.MockIPrivValidator
-	for i := 0; i < nodeNum; i++ {
+	for j := 0; j < nodeNum; j++ {
+		i := j
 		privVals[i] = custom.NewMockIPrivValidator(ctrl)
 		privVals[i].EXPECT().GetPubKey().Return(pubKeys[i]).AnyTimes()
 		privVals[i].EXPECT().Sign(gomock.Any()).DoAndReturn(func(digest []byte) []byte {
@@ -44,38 +47,46 @@ func TestBFT(t *testing.T) {
 		LastHeight:       0,
 		LastProposedData: message.NilData,
 	}
-	committedStates := make([]*message.AppState, 0)
-	committedStates = append(committedStates, initState)
-	curProposers := []*custom.MockIPubValidator{pubVals[0], pubVals[1], pubVals[2], pubVals[3]}
+	var committedStates [4][]*message.AppState
+	curProposers := make([]*custom.MockIPubValidator, 0)
+	for i := 0; i < nodeNum; i++ {
+		curProposers = append(curProposers, pubVals[i])
+	}
 	var indeces [nodeNum]int
 	var proposedData message.ProposedData = sha256.Sum256([]byte("hello"))
 	var committees [nodeNum]*custom.MockICommittee
 	for j := 0; j < nodeNum; j++ {
 		i := j
+		committedStates[i] = append(committedStates[i], initState)
 		indeces[i] = 0
+
 		committees[i] = custom.NewMockICommittee(ctrl)
 		committees[i].EXPECT().GetValidator(pubKeys[i]).Return(pubVals[i]).AnyTimes()
 		committees[i].EXPECT().IsValidator(gomock.Any()).Return(true).AnyTimes()
-		committees[i].EXPECT().TotalVotingPower().Return(int64(4)).AnyTimes()
+		committees[i].EXPECT().TotalVotingPower().Return(int64(nodeNum)).AnyTimes()
 		committees[i].EXPECT().GetCurrentProposer().DoAndReturn(func() message.PubKey {
-			defer func() { indeces[i] = (indeces[i] + 1) % nodeNum }()
 			return curProposers[indeces[i]].GetPubKey()
 		}).AnyTimes()
 		committees[i].EXPECT().DecidesProposal().Return(proposedData).AnyTimes()
 		committees[i].EXPECT().Commit(gomock.Any()).DoAndReturn(func(data message.ProposedData) error {
 			s := &message.AppState{
-				LastHeight:       committedStates[len(committedStates)-1].LastHeight + 1,
+				LastHeight:       committedStates[i][len(committedStates[i])-1].LastHeight + 1,
 				LastProposedData: data,
 			}
-			committedStates = append(committedStates, s)
+			committedStates[i] = append(committedStates[i], s)
 			logrus.Infof("core %d committed %v at height %d", i, data, s.LastHeight)
 			commitTimes++
 			if commitTimes == 4 {
 				close(stopCh)
 			}
+			indeces[i] = (indeces[i] + 1) % nodeNum
 			return nil
 		}).AnyTimes()
-		committees[i].EXPECT().GetAppState().Return(committedStates[len(committedStates)-1]).AnyTimes()
+		//committees[i].EXPECT().GetAppState().Return(committedStates[i][len(committedStates[i])-1]).AnyTimes()
+		committees[i].EXPECT().GetAppState().DoAndReturn(func() *message.AppState {
+			ret := committedStates[i][len(committedStates[i])-1]
+			return ret
+		}).AnyTimes()
 	}
 
 	// init bft core
@@ -85,10 +96,15 @@ func TestBFT(t *testing.T) {
 		cores[i].SetName("core" + strconv.Itoa(i))
 	}
 	for i := 0; i < nodeNum; i++ {
-		cores[i].validators.CustomValidators.(*custom.MockICommittee).EXPECT().
+		ii := i
+		cores[ii].validators.CustomValidators.(*custom.MockICommittee).EXPECT().
 			BroadCast(gomock.Any()).DoAndReturn(func(msg message.ConsensusMessage) error {
+
 			for j := 0; j < nodeNum; j++ {
-				cores[j].RecvMsg(msg)
+				if ii != j {
+					fmt.Printf("core %d broadcast %v to core%d\n", ii, msg, j)
+					cores[j].RecvMsg(msg)
+				}
 			}
 			return nil
 		}).AnyTimes()

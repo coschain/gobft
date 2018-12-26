@@ -3,7 +3,7 @@ package gobft
 import (
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	//log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -26,6 +26,7 @@ type TimeoutTicker interface {
 // Timeouts are scheduled along the tickChan,
 // and fired on the tockChan.
 type timeoutTicker struct {
+	core *Core
 	timer    *time.Timer
 	tickChan chan timeoutInfo // for scheduling timeouts
 	tockChan chan timeoutInfo // for notifying about them
@@ -33,8 +34,9 @@ type timeoutTicker struct {
 }
 
 // NewTimeoutTicker returns a new TimeoutTicker.
-func NewTimeoutTicker() TimeoutTicker {
+func NewTimeoutTicker(c *Core) TimeoutTicker {
 	tt := &timeoutTicker{
+		core: c,
 		timer:    time.NewTimer(0),
 		tickChan: make(chan timeoutInfo, tickTockBufferSize),
 		tockChan: make(chan timeoutInfo, tickTockBufferSize),
@@ -80,7 +82,7 @@ func (t *timeoutTicker) stopTimer() {
 		select {
 		case <-t.timer.C:
 		default:
-			log.Debug("Timer already stopped")
+			t.core.log.Debug("Timer already stopped")
 		}
 	}
 }
@@ -89,12 +91,12 @@ func (t *timeoutTicker) stopTimer() {
 // timers are interupted and replaced by new ticks from later steps
 // timeouts of 0 on the tickChan will be immediately relayed to the tockChan
 func (t *timeoutTicker) timeoutRoutine() {
-	log.Debug("Starting timeout routine")
+	t.core.log.Debug("Starting timeout routine")
 	var ti timeoutInfo
 	for {
 		select {
 		case newti := <-t.tickChan:
-			log.Debug("Received tick", "old_ti", ti, "new_ti", newti)
+			t.core.log.Debug("Received tick", " old_ti ", ti, " new_ti ", newti)
 
 			// ignore tickers for old height/round/step
 			if newti.Height < ti.Height {
@@ -116,14 +118,18 @@ func (t *timeoutTicker) timeoutRoutine() {
 			// NOTE time.Timer allows duration to be non-positive
 			ti = newti
 			t.timer.Reset(ti.Duration)
-			log.Debug("Scheduled timeout", " dur ", ti.Duration, " height ", ti.Height, " round ", ti.Round, " step ", ti.Step)
+			t.core.log.Debug("Scheduled timeout", " dur ", ti.Duration, " height ", ti.Height, " round ", ti.Round, " step ", ti.Step)
 		case <-t.timer.C:
-			log.Info("Timed out", " dur ", ti.Duration, " height ", ti.Height, " round ", ti.Round, " step ", ti.Step)
+			t.core.log.Info("Timed out", " dur ", ti.Duration, " height ", ti.Height, " round ", ti.Round, " step ", ti.Step)
 			// go routine here guarantees timeoutRoutine doesn't block.
 			// Determinism comes from playback in the receiveRoutine.
 			// We can eliminate it by merging the timeoutRoutine into receiveRoutine
 			//  and managing the timeouts ourselves with a millisecond ticker
-			go func(toi timeoutInfo) { t.tockChan <- toi }(ti)
+			go func(toi timeoutInfo) {
+				t.core.log.Debug("pushing")
+				t.tockChan <- toi
+				t.core.log.Debug("pushed to tock chan")
+			}(ti)
 		case <-t.stopCh:
 			return
 		}
