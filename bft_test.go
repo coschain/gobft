@@ -12,7 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const nodeNum = 1
+const nodeNum = 4
 
 func TestBFT(t *testing.T) {
 	ctrl := gomock.NewController(t)
@@ -41,13 +41,9 @@ func TestBFT(t *testing.T) {
 	}
 
 	// init committee
-	stopCh := make(chan struct{})
-	commitTimes := 0
-	initState := &message.AppState{
-		LastHeight:       0,
-		LastProposedData: message.NilData,
-	}
-	var committedStates [4][]*message.AppState
+	stopCh := make([]chan struct{}, nodeNum)
+	var commitTimes [nodeNum]int
+	var committedStates [nodeNum][]*message.AppState
 	curProposers := make([]*custom.MockIPubValidator, 0)
 	for i := 0; i < nodeNum; i++ {
 		curProposers = append(curProposers, pubVals[i])
@@ -55,13 +51,28 @@ func TestBFT(t *testing.T) {
 	var indeces [nodeNum]int
 	var proposedData message.ProposedData = sha256.Sum256([]byte("hello"))
 	var committees [nodeNum]*custom.MockICommittee
+
+	initState := &message.AppState{
+		LastHeight:       0,
+		LastProposedData: message.NilData,
+	}
 	for j := 0; j < nodeNum; j++ {
 		i := j
+		commitTimes[i] = 0
 		committedStates[i] = append(committedStates[i], initState)
 		indeces[i] = 0
+		stopCh[i] = make(chan struct{})
 
 		committees[i] = custom.NewMockICommittee(ctrl)
-		committees[i].EXPECT().GetValidator(pubKeys[i]).Return(pubVals[i]).AnyTimes()
+		//committees[i].EXPECT().GetValidator(pubKeys[i]).Return(pubVals[i]).AnyTimes()
+		committees[i].EXPECT().GetValidator(gomock.Any()).DoAndReturn(func(pubKey message.PubKey) custom.IPubValidator {
+			for k := 0; k < nodeNum; k++ {
+				if pubKey == pubKeys[k] {
+					return pubVals[k]
+				}
+			}
+			return pubVals[0]
+		}).AnyTimes()
 		committees[i].EXPECT().IsValidator(gomock.Any()).Return(true).AnyTimes()
 		committees[i].EXPECT().TotalVotingPower().Return(int64(nodeNum)).AnyTimes()
 		committees[i].EXPECT().GetCurrentProposer().DoAndReturn(func() message.PubKey {
@@ -75,9 +86,9 @@ func TestBFT(t *testing.T) {
 			}
 			committedStates[i] = append(committedStates[i], s)
 			logrus.Infof("core %d committed %v at height %d", i, data, s.LastHeight)
-			commitTimes++
-			if commitTimes == 4 {
-				close(stopCh)
+			commitTimes[i]++
+			if commitTimes[i] == 4 {
+				close(stopCh[i])
 			}
 			indeces[i] = (indeces[i] + 1) % nodeNum
 			return nil
@@ -115,5 +126,7 @@ func TestBFT(t *testing.T) {
 		cores[i].Start()
 	}
 
-	<-stopCh
+	for i := 0; i < nodeNum; i++ {
+		<-stopCh[i]
+	}
 }
