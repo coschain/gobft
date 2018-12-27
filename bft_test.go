@@ -2,7 +2,6 @@ package gobft
 
 import (
 	"crypto/sha256"
-	"fmt"
 	"strconv"
 	"testing"
 
@@ -10,14 +9,18 @@ import (
 	"github.com/coschain/gobft/message"
 	"github.com/golang/mock/gomock"
 	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 )
 
 const nodeNum = 4
 const byzantineIdx = 2
+const commitHeight = 5
 
 func TestBFT(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
+
+	assert := assert.New(t)
 
 	// init IPubValidator and IPrivValidator
 	var pubKeys [nodeNum]message.PubKey
@@ -92,7 +95,7 @@ func TestBFT(t *testing.T) {
 			committedStates[i] = append(committedStates[i], s)
 			logrus.Infof("core %d committed %v at height %d", i, data, s.LastHeight)
 			commitTimes[i]++
-			if commitTimes[i] == 5 {
+			if commitTimes[i] == commitHeight {
 				close(stopCh[i])
 			}
 
@@ -125,7 +128,7 @@ func TestBFT(t *testing.T) {
 
 			for j := 0; j < nodeNum; j++ {
 				if ii != j {
-					fmt.Printf("core %d broadcast %v to core%d\n", ii, msg, j)
+					//fmt.Printf("core %d broadcast %v to core%d\n", ii, msg, j)
 					cores[j].RecvMsg(msg)
 				}
 			}
@@ -134,10 +137,12 @@ func TestBFT(t *testing.T) {
 	}
 
 	// Init byzantine core. It always:
-	// 1. propose a invalidProposedData
+	// 1. propose invalidProposedData
+	// 2. prevote invalidProposedData
 	if nodeNum >= byzantineIdx {
 		cores[byzantineIdx].validators.CustomValidators.(*custom.MockICommittee).EXPECT().
 			DecidesProposal().Return(invalidProposedData).AnyTimes()
+		cores[byzantineIdx].setByzantinePrevote(&invalidProposedData)
 	}
 
 	// start
@@ -148,4 +153,9 @@ func TestBFT(t *testing.T) {
 	for i := 0; i < nodeNum; i++ {
 		<-stopCh[i]
 	}
+
+	for i := 0; i < nodeNum; i++ {
+		assert.Equal(commitHeight+1, len(committedStates[i]))
+	}
+
 }

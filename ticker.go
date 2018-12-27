@@ -120,15 +120,13 @@ func (t *timeoutTicker) timeoutRoutine() {
 			t.timer.Reset(ti.Duration)
 			t.core.log.Debug("Scheduled timeout", " dur ", ti.Duration, " height ", ti.Height, " round ", ti.Round, " step ", ti.Step)
 		case <-t.timer.C:
-			t.core.log.Info("Timed out", " dur ", ti.Duration, " height ", ti.Height, " round ", ti.Round, " step ", ti.Step)
+			t.core.log.Debug("Timed out", " dur ", ti.Duration, " height ", ti.Height, " round ", ti.Round, " step ", ti.Step)
 			// go routine here guarantees timeoutRoutine doesn't block.
 			// Determinism comes from playback in the receiveRoutine.
 			// We can eliminate it by merging the timeoutRoutine into receiveRoutine
 			//  and managing the timeouts ourselves with a millisecond ticker
 			go func(toi timeoutInfo) {
-				t.core.log.Debug("pushing")
 				t.tockChan <- toi
-				t.core.log.Debug("pushed to tock chan")
 			}(ti)
 		case <-t.stopCh:
 			return

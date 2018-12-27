@@ -28,6 +28,9 @@ type Core struct {
 	log *logrus.Entry
 
 	sync.RWMutex
+
+	// for test only
+	byzantinePrevote *message.ProposedData
 }
 
 func NewCore(vals custom.ICommittee, pVal custom.IPrivValidator) *Core {
@@ -341,7 +344,7 @@ func (c *Core) enterPropose(height int64, round int) {
 		c.log.Info("enterPropose: Our turn to propose", " proposer ", self)
 		c.doPropose(height, round)
 	} else {
-		c.log.Info("enterPropose: Not our turn to propose", " proposer ",
+		c.log.Debug("enterPropose: Not our turn to propose", " proposer ",
 			c.validators.CustomValidators.GetCurrentProposer(c.Round), " self ", self)
 	}
 }
@@ -408,8 +411,19 @@ func (c *Core) sendInternalMessage(mi msgInfo) {
 	}
 }
 
+func (c *Core) setByzantinePrevote(data *message.ProposedData) {
+	c.byzantinePrevote = data
+}
+
 func (c *Core) doPrevote(height int64, round int) {
 	var prevote *message.Vote
+
+	if c.byzantinePrevote != nil && *c.byzantinePrevote != message.NilData {
+		prevote = message.NewVote(message.PrevoteType, c.Height, c.Round, c.byzantinePrevote)
+		c.signAddVote(prevote)
+		return
+	}
+
 	if c.LockedRound >= 0 && c.LockedProposal != nil {
 		c.log.Info("enterPrevote: vote for POLed proposal: ", c.LockedProposal.Proposed)
 		prevote = message.NewVote(message.PrevoteType, c.Height, c.Round, &c.LockedProposal.Proposed)
@@ -659,10 +673,11 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 	switch vote.Type {
 	case message.PrevoteType:
 		prevotes := c.Votes.Prevotes(vote.Round)
-		c.log.Info("Added to prevote", " vote ", vote, " prevotes ", prevotes.String())
+		c.log.Debug("Added to prevote", " vote ", vote, " prevotes ", prevotes.String())
 
 		// If +2/3 prevotes for a block or nil for *any* round:
 		if polkaData, ok := prevotes.TwoThirdsMajority(); ok {
+			c.log.Info("POLKA!!! ", prevotes.String())
 
 			// There was a polkaData!
 			// If we're locked but this is a recent polkaData, unlock.
@@ -722,7 +737,7 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 
 	case message.PrecommitType:
 		precommits := c.Votes.Precommits(vote.Round)
-		c.log.Info("Added to precommit", " vote ", vote, " precommits ", precommits.String())
+		c.log.Debug("Added to precommit", " vote ", vote, " precommits ", precommits.String())
 
 		maj23, ok := precommits.TwoThirdsMajority()
 		if ok {
@@ -752,7 +767,7 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 func (c *Core) defaultSetProposal(proposal *message.Vote) error {
 	// Already have one
 	if c.Proposal != nil {
-		c.log.Warnf("Already got proposal %v from %s, get another proposal %v from %s",
+		c.log.Debugf("Already got proposal %v from %s, get another proposal %v from %s",
 			c.Proposal.Proposed, c.Proposal.Address, proposal.Proposed, proposal.Address)
 		return nil
 	}
@@ -779,7 +794,7 @@ func (c *Core) defaultSetProposal(proposal *message.Vote) error {
 	// Only accept the proposal and set Core.Proposal when CustomValidators approves it
 	if proposal.Proposed == c.validators.CustomValidators.DecidesProposal() {
 		c.Proposal = proposal
-		c.log.Info("Accept proposal", " proposal ", proposal)
+		c.log.Debug("Accept proposal", " proposal ", proposal)
 	} else {
 		c.log.Warnf("invalid proposal, want %v got %v",
 			c.validators.CustomValidators.DecidesProposal(), proposal.Proposed)
