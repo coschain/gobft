@@ -24,7 +24,7 @@ type ICommittee interface {
 	IsValidator(key message.PubKey) bool
 	TotalVotingPower() int64
 
-	GetCurrentProposer() message.PubKey
+	GetCurrentProposer(round int) message.PubKey
 	// DecidesProposal decides what will be proposed if this validator is the current
 	// proposer. Other validators also used this function to decide what proposal they
 	// will vote for, if the return value doesn't match the ProposedData of the proposal

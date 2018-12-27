@@ -337,12 +337,12 @@ func (c *Core) enterPropose(height int64, round int) {
 		return
 	}
 
-	if c.validators.CustomValidators.GetCurrentProposer() == self {
+	if c.validators.CustomValidators.GetCurrentProposer(c.Round) == self {
 		c.log.Info("enterPropose: Our turn to propose", " proposer ", self)
 		c.doPropose(height, round)
 	} else {
 		c.log.Info("enterPropose: Not our turn to propose", " proposer ",
-			c.validators.CustomValidators.GetCurrentProposer(), " self ", self)
+			c.validators.CustomValidators.GetCurrentProposer(c.Round), " self ", self)
 	}
 }
 
@@ -764,9 +764,9 @@ func (c *Core) defaultSetProposal(proposal *message.Vote) error {
 	}
 
 	// check if proposal is from the current proposer
-	if c.validators.CustomValidators.GetCurrentProposer() != proposal.Address {
+	if c.validators.CustomValidators.GetCurrentProposer(c.Round) != proposal.Address {
 		c.log.Errorf("invalid proposer. want %v, got %v",
-			c.validators.CustomValidators.GetCurrentProposer(), proposal.Address)
+			c.validators.CustomValidators.GetCurrentProposer(c.Round), proposal.Address)
 		return ErrInvalidProposer
 	}
 
@@ -779,8 +779,11 @@ func (c *Core) defaultSetProposal(proposal *message.Vote) error {
 	// Only accept the proposal and set Core.Proposal when CustomValidators approves it
 	if proposal.Proposed == c.validators.CustomValidators.DecidesProposal() {
 		c.Proposal = proposal
+		c.log.Info("Accept proposal", " proposal ", proposal)
+	} else {
+		c.log.Warnf("invalid proposal, want %v got %v",
+			c.validators.CustomValidators.DecidesProposal(), proposal.Proposed)
 	}
-	c.log.Info("Received proposal", "proposal", proposal)
 	return nil
 }
 

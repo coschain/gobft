@@ -76,17 +76,17 @@ func (mr *MockICommitteeMockRecorder) TotalVotingPower() *gomock.Call {
 }
 
 // GetCurrentProposer mocks base method
-func (m *MockICommittee) GetCurrentProposer() message.PubKey {
+func (m *MockICommittee) GetCurrentProposer(round int) message.PubKey {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetCurrentProposer")
+	ret := m.ctrl.Call(m, "GetCurrentProposer", round)
 	ret0, _ := ret[0].(message.PubKey)
 	return ret0
 }
 
 // GetCurrentProposer indicates an expected call of GetCurrentProposer
-func (mr *MockICommitteeMockRecorder) GetCurrentProposer() *gomock.Call {
+func (mr *MockICommitteeMockRecorder) GetCurrentProposer(round interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCurrentProposer", reflect.TypeOf((*MockICommittee)(nil).GetCurrentProposer))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCurrentProposer", reflect.TypeOf((*MockICommittee)(nil).GetCurrentProposer), round)
 }
 
 // DecidesProposal mocks base method

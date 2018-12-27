@@ -57,7 +57,6 @@ func TestValidatorsVotes(t *testing.T) {
 
 	// init ICommittee
 	curProposers := []*custom.MockIPubValidator{val1, val2, val3, val4}
-	idx := 0
 	var proposedData message.ProposedData = sha256.Sum256([]byte("hello"))
 
 	valSet := custom.NewMockICommittee(ctrl)
@@ -67,16 +66,15 @@ func TestValidatorsVotes(t *testing.T) {
 	valSet.EXPECT().GetValidator(pubkey4).Return(val1).AnyTimes()
 	valSet.EXPECT().IsValidator(gomock.Any()).Return(true).AnyTimes()
 	valSet.EXPECT().TotalVotingPower().Return(int64(4)).AnyTimes()
-	valSet.EXPECT().GetCurrentProposer().DoAndReturn(func() message.PubKey {
-		defer func() { idx = (idx + 1) % 4 }()
-		return curProposers[idx].GetPubKey()
+	valSet.EXPECT().GetCurrentProposer(gomock.Any()).DoAndReturn(func(round int) message.PubKey {
+		return curProposers[round%4].GetPubKey()
 	}).AnyTimes()
 	valSet.EXPECT().DecidesProposal().Return(proposedData)
-	assert.Equal(val1.GetPubKey(), valSet.GetCurrentProposer())
-	assert.Equal(val2.GetPubKey(), valSet.GetCurrentProposer())
-	assert.Equal(val3.GetPubKey(), valSet.GetCurrentProposer())
-	assert.Equal(val4.GetPubKey(), valSet.GetCurrentProposer())
-	assert.Equal(val1.GetPubKey(), valSet.GetCurrentProposer())
+	assert.Equal(val1.GetPubKey(), valSet.GetCurrentProposer(0))
+	assert.Equal(val2.GetPubKey(), valSet.GetCurrentProposer(1))
+	assert.Equal(val3.GetPubKey(), valSet.GetCurrentProposer(2))
+	assert.Equal(val4.GetPubKey(), valSet.GetCurrentProposer(3))
+	assert.Equal(val1.GetPubKey(), valSet.GetCurrentProposer(4))
 	assert.Equal(proposedData, valSet.DecidesProposal())
 
 	vs := NewValidators(valSet, privVal1)

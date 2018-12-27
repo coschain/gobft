@@ -13,6 +13,7 @@ import (
 )
 
 const nodeNum = 4
+const byzantineIdx = 2
 
 func TestBFT(t *testing.T) {
 	ctrl := gomock.NewController(t)
@@ -44,12 +45,11 @@ func TestBFT(t *testing.T) {
 	stopCh := make([]chan struct{}, nodeNum)
 	var commitTimes [nodeNum]int
 	var committedStates [nodeNum][]*message.AppState
-	curProposers := make([]*custom.MockIPubValidator, 0)
-	for i := 0; i < nodeNum; i++ {
-		curProposers = append(curProposers, pubVals[i])
-	}
-	var indeces [nodeNum]int
+	//curProposers := make([]*custom.MockIPubValidator, 0)
+	var curProposers [4][]*custom.MockIPubValidator
+
 	var proposedData message.ProposedData = sha256.Sum256([]byte("hello"))
+	var invalidProposedData message.ProposedData = sha256.Sum256([]byte("byzantine"))
 	var committees [nodeNum]*custom.MockICommittee
 
 	initState := &message.AppState{
@@ -58,13 +58,15 @@ func TestBFT(t *testing.T) {
 	}
 	for j := 0; j < nodeNum; j++ {
 		i := j
+
+		for l := 0; l < nodeNum; l++ {
+			curProposers[i] = append(curProposers[i], pubVals[l])
+		}
 		commitTimes[i] = 0
 		committedStates[i] = append(committedStates[i], initState)
-		indeces[i] = 0
 		stopCh[i] = make(chan struct{})
 
 		committees[i] = custom.NewMockICommittee(ctrl)
-		//committees[i].EXPECT().GetValidator(pubKeys[i]).Return(pubVals[i]).AnyTimes()
 		committees[i].EXPECT().GetValidator(gomock.Any()).DoAndReturn(func(pubKey message.PubKey) custom.IPubValidator {
 			for k := 0; k < nodeNum; k++ {
 				if pubKey == pubKeys[k] {
@@ -75,10 +77,13 @@ func TestBFT(t *testing.T) {
 		}).AnyTimes()
 		committees[i].EXPECT().IsValidator(gomock.Any()).Return(true).AnyTimes()
 		committees[i].EXPECT().TotalVotingPower().Return(int64(nodeNum)).AnyTimes()
-		committees[i].EXPECT().GetCurrentProposer().DoAndReturn(func() message.PubKey {
-			return curProposers[indeces[i]].GetPubKey()
+		committees[i].EXPECT().GetCurrentProposer(gomock.Any()).DoAndReturn(func(round int) message.PubKey {
+			cur := curProposers[i][round%nodeNum]
+			return cur.GetPubKey()
 		}).AnyTimes()
-		committees[i].EXPECT().DecidesProposal().Return(proposedData).AnyTimes()
+		if i != byzantineIdx {
+			committees[i].EXPECT().DecidesProposal().Return(proposedData).AnyTimes()
+		}
 		committees[i].EXPECT().Commit(gomock.Any()).DoAndReturn(func(data message.ProposedData) error {
 			s := &message.AppState{
 				LastHeight:       committedStates[i][len(committedStates[i])-1].LastHeight + 1,
@@ -87,10 +92,17 @@ func TestBFT(t *testing.T) {
 			committedStates[i] = append(committedStates[i], s)
 			logrus.Infof("core %d committed %v at height %d", i, data, s.LastHeight)
 			commitTimes[i]++
-			if commitTimes[i] == 4 {
+			if commitTimes[i] == 5 {
 				close(stopCh[i])
 			}
-			indeces[i] = (indeces[i] + 1) % nodeNum
+
+			// shift proposer
+			cur := curProposers[i][0]
+			for l:=1;l<nodeNum;l++ {
+				curProposers[i][l-1] = curProposers[i][l]
+			}
+			curProposers[i][nodeNum-1] = cur
+
 			return nil
 		}).AnyTimes()
 		//committees[i].EXPECT().GetAppState().Return(committedStates[i][len(committedStates[i])-1]).AnyTimes()
@@ -119,6 +131,13 @@ func TestBFT(t *testing.T) {
 			}
 			return nil
 		}).AnyTimes()
+	}
+
+	// Init byzantine core. It always:
+	// 1. propose a invalidProposedData
+	if nodeNum >= byzantineIdx {
+		cores[byzantineIdx].validators.CustomValidators.(*custom.MockICommittee).EXPECT().
+			DecidesProposal().Return(invalidProposedData).AnyTimes()
 	}
 
 	// start
