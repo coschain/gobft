@@ -101,7 +101,7 @@ func TestBFT(t *testing.T) {
 
 			// shift proposer
 			cur := curProposers[i][0]
-			for l:=1;l<nodeNum;l++ {
+			for l := 1; l < nodeNum; l++ {
 				curProposers[i][l-1] = curProposers[i][l]
 			}
 			curProposers[i][nodeNum-1] = cur
@@ -121,20 +121,6 @@ func TestBFT(t *testing.T) {
 		cores[i] = NewCore(committees[i], privVals[i])
 		cores[i].SetName("core" + strconv.Itoa(i))
 	}
-	for i := 0; i < nodeNum; i++ {
-		ii := i
-		cores[ii].validators.CustomValidators.(*custom.MockICommittee).EXPECT().
-			BroadCast(gomock.Any()).DoAndReturn(func(msg message.ConsensusMessage) error {
-
-			for j := 0; j < nodeNum; j++ {
-				if ii != j {
-					//fmt.Printf("core %d broadcast %v to core%d\n", ii, msg, j)
-					cores[j].RecvMsg(msg)
-				}
-			}
-			return nil
-		}).AnyTimes()
-	}
 
 	// Init byzantine core. It always:
 	// 1. propose invalidProposedData
@@ -143,6 +129,24 @@ func TestBFT(t *testing.T) {
 		cores[byzantineIdx].validators.CustomValidators.(*custom.MockICommittee).EXPECT().
 			DecidesProposal().Return(invalidProposedData).AnyTimes()
 		cores[byzantineIdx].setByzantinePrevote(&invalidProposedData)
+	}
+
+	for i := 0; i < nodeNum; i++ {
+		ii := i
+		cores[ii].validators.CustomValidators.(*custom.MockICommittee).EXPECT().
+			BroadCast(gomock.Any()).DoAndReturn(func(msg message.ConsensusMessage) error {
+
+			for j := 0; j < nodeNum; j++ {
+				if ii != j {
+					cores[j].RecvMsg(msg)
+				}
+			}
+			return nil
+		}).AnyTimes()
+		cores[ii].validators.CustomValidators.(*custom.MockICommittee).EXPECT().
+			ValidateProposed(gomock.Any()).DoAndReturn(func(data message.ProposedData) bool {
+			return data == cores[ii].validators.CustomValidators.(*custom.MockICommittee).DecidesProposal()
+		}).AnyTimes()
 	}
 
 	// start

@@ -792,7 +792,7 @@ func (c *Core) defaultSetProposal(proposal *message.Vote) error {
 	}
 
 	// Only accept the proposal and set Core.Proposal when CustomValidators approves it
-	if proposal.Proposed == c.validators.CustomValidators.DecidesProposal() {
+	if c.validators.CustomValidators.ValidateProposed(proposal.Proposed) {
 		c.Proposal = proposal
 		c.log.Debug("Accept proposal", " proposal ", proposal)
 	} else {

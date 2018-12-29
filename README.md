@@ -44,17 +44,18 @@ type ICommittee interface {
 
 	GetCurrentProposer(round int) message.PubKey
 	// DecidesProposal decides what will be proposed if this validator is the current
-	// proposer. Other validators also used this function to decide what proposal they
-	// will vote for, if the return value doesn't match the ProposedData of the proposal
-	// they received from the current proposer, they prevote for nil
+	// proposer.
 	DecidesProposal() message.ProposedData
+
+	// ValidateProposed validates the proposed data
+	ValidateProposed(data message.ProposedData) bool
 
 	// Commit defines the actions the users taken when consensus is reached
 	Commit(p message.ProposedData) error
 
 	GetAppState() *message.AppState
-	// BroadCast sends v to other validators
-	BroadCast(v message.ConsensusMessage) error
+	// BroadCast sends msg to other validators
+	BroadCast(msg message.ConsensusMessage) error
 }
 
 // IPubValidator verifies if a message is properly signed by the right validator

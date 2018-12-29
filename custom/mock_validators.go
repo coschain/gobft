@@ -103,6 +103,20 @@ func (mr *MockICommitteeMockRecorder) DecidesProposal() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DecidesProposal", reflect.TypeOf((*MockICommittee)(nil).DecidesProposal))
 }
 
+// ValidateProposed mocks base method
+func (m *MockICommittee) ValidateProposed(data message.ProposedData) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ValidateProposed", data)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// ValidateProposed indicates an expected call of ValidateProposed
+func (mr *MockICommitteeMockRecorder) ValidateProposed(data interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateProposed", reflect.TypeOf((*MockICommittee)(nil).ValidateProposed), data)
+}
+
 // Commit mocks base method
 func (m *MockICommittee) Commit(p message.ProposedData) error {
 	m.ctrl.T.Helper()
@@ -132,17 +146,17 @@ func (mr *MockICommitteeMockRecorder) GetAppState() *gomock.Call {
 }
 
 // BroadCast mocks base method
-func (m *MockICommittee) BroadCast(v message.ConsensusMessage) error {
+func (m *MockICommittee) BroadCast(msg message.ConsensusMessage) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BroadCast", v)
+	ret := m.ctrl.Call(m, "BroadCast", msg)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // BroadCast indicates an expected call of BroadCast
-func (mr *MockICommitteeMockRecorder) BroadCast(v interface{}) *gomock.Call {
+func (mr *MockICommitteeMockRecorder) BroadCast(msg interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BroadCast", reflect.TypeOf((*MockICommittee)(nil).BroadCast), v)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BroadCast", reflect.TypeOf((*MockICommittee)(nil).BroadCast), msg)
 }
 
 // MockIPubValidator is a mock of IPubValidator interface
