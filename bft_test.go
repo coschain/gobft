@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/coschain/gobft/custom"
+	"github.com/coschain/gobft/custom/mock"
 	"github.com/coschain/gobft/message"
 	"github.com/golang/mock/gomock"
 	"github.com/sirupsen/logrus"
@@ -24,20 +25,20 @@ func TestBFT(t *testing.T) {
 
 	// init IPubValidator and IPrivValidator
 	var pubKeys [nodeNum]message.PubKey
-	var pubVals [nodeNum]*custom.MockIPubValidator
+	var pubVals [nodeNum]*mock.MockIPubValidator
 	for j := 0; j < nodeNum; j++ {
 		i := j
 		pubKeys[i] = message.PubKey("val_pubkey" + strconv.Itoa(i))
-		pubVals[i] = custom.NewMockIPubValidator(ctrl)
+		pubVals[i] = mock.NewMockIPubValidator(ctrl)
 		pubVals[i].EXPECT().GetVotingPower().Return(int64(1)).AnyTimes()
 		pubVals[i].EXPECT().VerifySig(gomock.Any(), gomock.Any()).Return(true).AnyTimes()
 		pubVals[i].EXPECT().GetPubKey().Return(pubKeys[i]).AnyTimes()
 	}
 
-	var privVals [nodeNum]*custom.MockIPrivValidator
+	var privVals [nodeNum]*mock.MockIPrivValidator
 	for j := 0; j < nodeNum; j++ {
 		i := j
-		privVals[i] = custom.NewMockIPrivValidator(ctrl)
+		privVals[i] = mock.NewMockIPrivValidator(ctrl)
 		privVals[i].EXPECT().GetPubKey().Return(pubKeys[i]).AnyTimes()
 		privVals[i].EXPECT().Sign(gomock.Any()).DoAndReturn(func(digest []byte) []byte {
 			return digest
@@ -49,11 +50,11 @@ func TestBFT(t *testing.T) {
 	var commitTimes [nodeNum]int
 	var committedStates [nodeNum][]*message.AppState
 	//curProposers := make([]*custom.MockIPubValidator, 0)
-	var curProposers [4][]*custom.MockIPubValidator
+	var curProposers [4][]*mock.MockIPubValidator
 
 	var proposedData message.ProposedData = sha256.Sum256([]byte("hello"))
 	var invalidProposedData message.ProposedData = sha256.Sum256([]byte("byzantine"))
-	var committees [nodeNum]*custom.MockICommittee
+	var committees [nodeNum]*mock.MockICommittee
 
 	initState := &message.AppState{
 		LastHeight:       0,
@@ -69,7 +70,7 @@ func TestBFT(t *testing.T) {
 		committedStates[i] = append(committedStates[i], initState)
 		stopCh[i] = make(chan struct{})
 
-		committees[i] = custom.NewMockICommittee(ctrl)
+		committees[i] = mock.NewMockICommittee(ctrl)
 		committees[i].EXPECT().GetValidator(gomock.Any()).DoAndReturn(func(pubKey message.PubKey) custom.IPubValidator {
 			for k := 0; k < nodeNum; k++ {
 				if pubKey == pubKeys[k] {
@@ -126,14 +127,14 @@ func TestBFT(t *testing.T) {
 	// 1. propose invalidProposedData
 	// 2. prevote invalidProposedData
 	if nodeNum >= byzantineIdx {
-		cores[byzantineIdx].validators.CustomValidators.(*custom.MockICommittee).EXPECT().
+		cores[byzantineIdx].validators.CustomValidators.(*mock.MockICommittee).EXPECT().
 			DecidesProposal().Return(invalidProposedData).AnyTimes()
 		cores[byzantineIdx].setByzantinePrevote(&invalidProposedData)
 	}
 
 	for i := 0; i < nodeNum; i++ {
 		ii := i
-		cores[ii].validators.CustomValidators.(*custom.MockICommittee).EXPECT().
+		cores[ii].validators.CustomValidators.(*mock.MockICommittee).EXPECT().
 			BroadCast(gomock.Any()).DoAndReturn(func(msg message.ConsensusMessage) error {
 
 			for j := 0; j < nodeNum; j++ {
@@ -143,9 +144,9 @@ func TestBFT(t *testing.T) {
 			}
 			return nil
 		}).AnyTimes()
-		cores[ii].validators.CustomValidators.(*custom.MockICommittee).EXPECT().
+		cores[ii].validators.CustomValidators.(*mock.MockICommittee).EXPECT().
 			ValidateProposed(gomock.Any()).DoAndReturn(func(data message.ProposedData) bool {
-			return data == cores[ii].validators.CustomValidators.(*custom.MockICommittee).DecidesProposal()
+			return data == cores[ii].validators.CustomValidators.(*mock.MockICommittee).DecidesProposal()
 		}).AnyTimes()
 	}
 
