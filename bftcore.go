@@ -41,9 +41,9 @@ func NewCore(vals custom.ICommittee, pVal custom.IPrivValidator) *Core {
 		//timeoutTicker: NewTimeoutTicker(),
 		done: make(chan struct{}),
 	}
+	c.log = logrus.WithField("CoreName", c.name)
 	c.timeoutTicker = NewTimeoutTicker(c)
 	logrus.SetLevel(logrus.InfoLevel)
-	c.log = logrus.WithField("CoreName", c.name)
 
 	return c
 }

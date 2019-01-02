@@ -50,7 +50,7 @@ func TestBFT(t *testing.T) {
 	var commitTimes [nodeNum]int
 	var committedStates [nodeNum][]*message.AppState
 	//curProposers := make([]*custom.MockIPubValidator, 0)
-	var curProposers [4][]*mock.MockIPubValidator
+	var curProposers [nodeNum][]*mock.MockIPubValidator
 
 	var proposedData message.ProposedData = sha256.Sum256([]byte("hello"))
 	var invalidProposedData message.ProposedData = sha256.Sum256([]byte("byzantine"))
