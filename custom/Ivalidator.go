@@ -30,7 +30,7 @@ type ICommittee interface {
 	DecidesProposal() message.ProposedData
 
 	// ValidateProposed validates the proposed data
-	ValidateProposed(data message.ProposedData) bool
+	ValidateProposal(data message.ProposedData) bool
 
 	// Commit defines the actions the users taken when consensus is reached
 	Commit(p message.ProposedData) error

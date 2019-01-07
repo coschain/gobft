@@ -104,18 +104,18 @@ func (mr *MockICommitteeMockRecorder) DecidesProposal() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DecidesProposal", reflect.TypeOf((*MockICommittee)(nil).DecidesProposal))
 }
 
-// ValidateProposed mocks base method
-func (m *MockICommittee) ValidateProposed(data message.ProposedData) bool {
+// ValidateProposal mocks base method
+func (m *MockICommittee) ValidateProposal(data message.ProposedData) bool {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ValidateProposed", data)
+	ret := m.ctrl.Call(m, "ValidateProposal", data)
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
 
-// ValidateProposed indicates an expected call of ValidateProposed
-func (mr *MockICommitteeMockRecorder) ValidateProposed(data interface{}) *gomock.Call {
+// ValidateProposal indicates an expected call of ValidateProposal
+func (mr *MockICommitteeMockRecorder) ValidateProposal(data interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateProposed", reflect.TypeOf((*MockICommittee)(nil).ValidateProposed), data)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateProposal", reflect.TypeOf((*MockICommittee)(nil).ValidateProposal), data)
 }
 
 // Commit mocks base method

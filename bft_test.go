@@ -145,7 +145,7 @@ func TestBFT(t *testing.T) {
 			return nil
 		}).AnyTimes()
 		cores[ii].validators.CustomValidators.(*mock.MockICommittee).EXPECT().
-			ValidateProposed(gomock.Any()).DoAndReturn(func(data message.ProposedData) bool {
+			ValidateProposal(gomock.Any()).DoAndReturn(func(data message.ProposedData) bool {
 			return data == cores[ii].validators.CustomValidators.(*mock.MockICommittee).DecidesProposal()
 		}).AnyTimes()
 	}
