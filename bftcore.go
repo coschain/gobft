@@ -190,9 +190,15 @@ func (c *Core) receiveRoutine() {
 func (c *Core) handleMsg(mi msgInfo) {
 	c.Lock()
 	defer c.Unlock()
+
 	c.log.Debug("handleMsg: ", mi.Msg)
 	var err error
 	msg := mi.Msg
+	if err = msg.ValidateBasic(); err != nil {
+		c.log.Error(err)
+		return
+	}
+
 	switch msg := msg.(type) {
 	case *message.Vote:
 		// attempt to add the vote and dupeout the validator if its a duplicate signature
@@ -593,6 +599,7 @@ func (c *Core) doCommit(data message.ProposedData) {
 	self := c.validators.GetSelfPubKey()
 	if c.validators.CustomValidators.GetCurrentProposer(c.CommitRound) == self {
 		records := c.Votes.Precommits(c.CommitRound).MakeCommit()
+		c.validators.Sign(records)
 		c.validators.CustomValidators.BroadCast(records)
 	}
 
