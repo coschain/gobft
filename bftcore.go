@@ -587,15 +587,16 @@ func (c *Core) enterCommit(height int64, commitRound int) {
 }
 
 func (c *Core) doCommit(data message.ProposedData) {
-	c.validators.CustomValidators.Commit(data)
-
-	// if we're the current proposer, broadcast the commit records
+	// if we're the current proposer, generate a Commit msg so that
+	// the app can store and broadcast it
 	self := c.validators.GetSelfPubKey()
+	records := (*message.Commit)(nil)
 	if c.validators.CustomValidators.GetCurrentProposer(c.CommitRound) == self {
-		records := c.Votes.Precommits(c.CommitRound).MakeCommit()
+		records = c.Votes.Precommits(c.CommitRound).MakeCommit()
 		c.validators.Sign(records)
-		c.validators.CustomValidators.BroadCast(records)
 	}
+
+	c.validators.CustomValidators.Commit(data, records)
 
 	appState := c.validators.CustomValidators.GetAppState()
 	c.updateToAppState(appState)
