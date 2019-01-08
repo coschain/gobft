@@ -364,11 +364,8 @@ func (c *Core) doPropose(height int64, round int) {
 		proposal.Proposed = c.LockedProposal.Proposed
 	}
 
-	c.validators.Sign(proposal)
+	c.signAddVote(proposal)
 	c.Proposal = proposal
-
-	c.sendInternalMessage(msgInfo{proposal})
-	c.validators.CustomValidators.BroadCast(proposal)
 }
 
 func (c *Core) enterPrevote(height int64, round int) {
@@ -432,9 +429,6 @@ func (c *Core) doPrevote(height int64, round int) {
 	if c.LockedRound >= 0 && c.LockedProposal != nil {
 		c.log.Info("enterPrevote: vote for POLed proposal: ", c.LockedProposal.Proposed)
 		prevote = message.NewVote(message.PrevoteType, c.Height, c.Round, &c.LockedProposal.Proposed)
-		//c.validators.Sign(prevote)
-		//c.sendInternalMessage(msgInfo{&message.VoteMessage{prevote}})
-		//c.validators.CustomValidators.BroadCast(prevote)
 	} else if c.Proposal != nil &&
 		c.Proposal.Proposed == c.validators.CustomValidators.DecidesProposal() {
 		prevote = message.NewVote(message.PrevoteType, c.Height, c.Round, &c.Proposal.Proposed)
