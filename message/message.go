@@ -159,6 +159,7 @@ func (vote *Vote) Bytes() []byte {
 type Commit struct {
 	ProposedData ProposedData `json:"proposed_data"`
 	Precommits   []*Vote      `json:"precommits"`
+	CommitTime   time.Time    `json:"committime"`
 	Address      PubKey       `json:"address"`
 	Signature    []byte       `json:"signature"`
 }
@@ -185,6 +186,8 @@ func (commit *Commit) Digest() []byte {
 	for i := range commit.Precommits {
 		h.Write(commit.Precommits[i].Bytes())
 	}
+	b, _ := commit.CommitTime.MarshalBinary()
+	h.Write(b)
 	h.Write([]byte(commit.Address))
 	return h.Sum(nil)
 }

@@ -593,6 +593,7 @@ func (c *Core) doCommit(data message.ProposedData) {
 	records := (*message.Commit)(nil)
 	if c.validators.CustomValidators.GetCurrentProposer(c.CommitRound) == self {
 		records = c.Votes.Precommits(c.CommitRound).MakeCommit()
+		records.CommitTime = c.CommitTime
 		c.validators.Sign(records)
 	}
 
