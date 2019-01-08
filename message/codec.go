@@ -18,12 +18,19 @@ func init() {
 // ConsensusMessage is a message that can be sent and received on the ConsensusReactor
 type ConsensusMessage interface {
 	ValidateBasic() error
+	Digest() []byte
+	SetSigner(key PubKey)
+	SetSignature(sig []byte)
+	GetSigner() PubKey
+	GetSignature() []byte
 	Bytes() []byte
+	String() string
 }
 
 func RegisterConsensusMessages(cdc *amino.Codec) {
 	cdc.RegisterInterface((*ConsensusMessage)(nil), nil)
-	//cdc.RegisterConcrete(&NewRoundStepMessage{}, "tendermint/NewRoundStepMessage", nil)
+	cdc.RegisterConcrete(&Vote{}, "gobft/Vote", nil)
+	cdc.RegisterConcrete(&Commit{}, "gobft/Commit", nil)
 }
 
 func DecodeConsensusMsg(bz []byte) (msg ConsensusMessage, err error) {
@@ -41,23 +48,4 @@ func cdcEncode(item interface{}) []byte {
 		return cdc.MustMarshalBinaryBare(item)
 	}
 	return nil
-}
-
-// VoteMessage is sent when voting for a proposal (or lack thereof).
-type VoteMessage struct {
-	Vote *Vote
-}
-
-// ValidateBasic performs basic validation.
-func (m *VoteMessage) ValidateBasic() error {
-	return m.Vote.ValidateBasic()
-}
-
-func (m *VoteMessage) Bytes() []byte {
-	return cdcEncode(m)
-}
-
-// String returns a string representation.
-func (m *VoteMessage) String() string {
-	return fmt.Sprintf("[Vote %v]", m.Vote)
 }

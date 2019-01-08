@@ -136,10 +136,12 @@ func TestBFT(t *testing.T) {
 		ii := i
 		cores[ii].validators.CustomValidators.(*mock.MockICommittee).EXPECT().
 			BroadCast(gomock.Any()).DoAndReturn(func(msg message.ConsensusMessage) error {
-
+			bytes := msg.Bytes()
+			ori, err := message.DecodeConsensusMsg(bytes)
+			assert.Equal(err, nil)
 			for j := 0; j < nodeNum; j++ {
 				if ii != j {
-					cores[j].RecvMsg(msg)
+					cores[j].RecvMsg(ori)
 				}
 			}
 			return nil

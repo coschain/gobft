@@ -24,25 +24,25 @@ func NewValidators(val custom.ICommittee, pVal custom.IPrivValidator) *Validator
 	return v
 }
 
-func (v *Validators) Sign(vote *message.Vote) {
-	vote.Address = v.privVal.GetPubKey()
-	vote.Signature = v.privVal.Sign(vote.Digest())
+func (v *Validators) Sign(msg message.ConsensusMessage) {
+	msg.SetSigner(v.privVal.GetPubKey())
+	msg.SetSignature(v.privVal.Sign(msg.Digest()))
 }
 
 func (v *Validators) GetSelfPubKey() message.PubKey {
 	return v.privVal.GetPubKey()
 }
 
-func (v *Validators) VerifySignature(vote *message.Vote) bool {
+func (v *Validators) VerifySignature(msg message.ConsensusMessage) bool {
 	//v.RLock()
 	//defer v.RUnlock()
 
-	val := v.CustomValidators.GetValidator(vote.Address)
+	val := v.CustomValidators.GetValidator(msg.GetSigner())
 	if val == nil {
-		log.Errorf("vote %s signed by a invalid validator", vote.String())
+		log.Errorf("ConsensusMessage %s signed by a invalid validator", msg.String())
 		return false
 	}
-	return val.VerifySig(vote.Digest(), vote.Signature)
+	return val.VerifySig(msg.Digest(), msg.GetSignature())
 }
 
 func (v *Validators) GetVotingPower(address *message.PubKey) int64 {

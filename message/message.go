@@ -2,6 +2,7 @@ package message
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -63,6 +64,22 @@ func NewVote(t VoteType, height int64, round int, proposed *ProposedData) *Vote 
 		Timestamp: common.Now(),
 		Proposed:  *proposed,
 	}
+}
+
+func (v *Vote) SetSigner(key PubKey) {
+	v.Address = key
+}
+
+func (v *Vote) GetSigner() PubKey {
+	return v.Address
+}
+
+func (v *Vote) SetSignature(sig []byte) {
+	v.Signature = sig
+}
+
+func (v *Vote) GetSignature() []byte {
+	return v.Signature
 }
 
 func (v *Vote) Digest() []byte {
@@ -140,11 +157,40 @@ func (vote *Vote) Bytes() []byte {
 
 // Commit contains the evidence that a block was committed by a set of validators.
 type Commit struct {
-	// NOTE: The Precommits are in order of address to preserve the bonded ValidatorSet order.
-	// Any peer with a block can gossip precommits by index with a peer without recalculating the
-	// active ValidatorSet.
 	ProposedData ProposedData `json:"proposed_data"`
 	Precommits   []*Vote      `json:"precommits"`
+	Address      PubKey       `json:"address"`
+	Signature    []byte       `json:"signature"`
+}
+
+func (commit *Commit) SetSigner(key PubKey) {
+	commit.Address = key
+}
+
+func (commit *Commit) GetSigner() PubKey {
+	return commit.Address
+}
+
+func (commit *Commit) SetSignature(sig []byte) {
+	commit.Signature = sig
+}
+
+func (commit *Commit) GetSignature() []byte {
+	return commit.Signature
+}
+
+func (commit *Commit) Digest() []byte {
+	h := sha256.New()
+	h.Write(commit.ProposedData[:])
+	for i := range commit.Precommits {
+		h.Write(commit.Precommits[i].Bytes())
+	}
+	h.Write([]byte(commit.Address))
+	return h.Sum(nil)
+}
+
+func (commit *Commit) Bytes() []byte {
+	return cdcEncode(commit)
 }
 
 // FirstPrecommit returns the first non-nil precommit in the commit.
@@ -236,4 +282,8 @@ func (commit *Commit) ValidateBasic() error {
 		}
 	}
 	return nil
+}
+
+func (commit *Commit) String() string {
+	return "" // TODO:
 }

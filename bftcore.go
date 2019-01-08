@@ -194,11 +194,11 @@ func (c *Core) handleMsg(mi msgInfo) {
 	var err error
 	msg := mi.Msg
 	switch msg := msg.(type) {
-	case *message.VoteMessage:
+	case *message.Vote:
 		// attempt to add the vote and dupeout the validator if its a duplicate signature
 		// if the vote gives us a 2/3-any or 2/3-one, we transition
 		//var added bool
-		_, err = c.tryAddVote(msg.Vote)
+		_, err = c.tryAddVote(msg)
 
 		if err == ErrAddingVote {
 			// TODO: punish peer
@@ -214,6 +214,7 @@ func (c *Core) handleMsg(mi msgInfo) {
 		// TODO: If rs.Height == vote.Height && rs.Round < vote.Round,
 		// the peer is sending us CatchupCommit precommits.
 		// We could make note of this and help filter in broadcastHasVoteMessage().
+	case *message.Commit:
 	default:
 		c.log.Error("Unknown msg type ", reflect.TypeOf(msg))
 	}
@@ -360,9 +361,8 @@ func (c *Core) doPropose(height int64, round int) {
 	c.validators.Sign(proposal)
 	c.Proposal = proposal
 
-	vmsg := &message.VoteMessage{proposal}
-	c.sendInternalMessage(msgInfo{vmsg})
-	c.validators.CustomValidators.BroadCast(vmsg)
+	c.sendInternalMessage(msgInfo{proposal})
+	c.validators.CustomValidators.BroadCast(proposal)
 }
 
 func (c *Core) enterPrevote(height int64, round int) {
@@ -392,9 +392,8 @@ func (c *Core) signAddVote(vote *message.Vote) {
 		return
 	}
 	c.validators.Sign(vote)
-	vmsg := &message.VoteMessage{vote}
-	c.sendInternalMessage(msgInfo{vmsg})
-	c.validators.CustomValidators.BroadCast(vmsg)
+	c.sendInternalMessage(msgInfo{vote})
+	c.validators.CustomValidators.BroadCast(vote)
 }
 
 func (c *Core) sendInternalMessage(mi msgInfo) {
@@ -584,13 +583,19 @@ func (c *Core) enterCommit(height int64, commitRound int) {
 	c.CommitTime = common.Now()
 
 	c.updateRoundStep(c.Round, RoundStepCommit)
-
-	// Maybe finalize immediately.
 	c.doCommit(maj23)
 }
 
 func (c *Core) doCommit(data message.ProposedData) {
 	c.validators.CustomValidators.Commit(data)
+
+	// if we're the current proposer, broadcast the commit records
+	self := c.validators.GetSelfPubKey()
+	if c.validators.CustomValidators.GetCurrentProposer(c.CommitRound) == self {
+		records := c.Votes.Precommits(c.CommitRound).MakeCommit()
+		c.validators.CustomValidators.BroadCast(records)
+	}
+
 	appState := c.validators.CustomValidators.GetAppState()
 	c.updateToAppState(appState)
 
