@@ -90,7 +90,8 @@ func (v *Vote) Digest() []byte {
 	binary.Write(buf, binary.BigEndian, v.Timestamp)
 	binary.Write(buf, binary.BigEndian, v.Proposed)
 	binary.Write(buf, binary.BigEndian, v.Address)
-	return buf.Bytes()
+	h := sha256.Sum256(buf.Bytes())
+	return h[:]
 }
 
 func (v *Vote) Copy() *Vote {
