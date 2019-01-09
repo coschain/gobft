@@ -430,7 +430,7 @@ func (c *Core) doPrevote(height int64, round int) {
 		c.log.Info("enterPrevote: vote for POLed proposal: ", c.LockedProposal.Proposed)
 		prevote = message.NewVote(message.PrevoteType, c.Height, c.Round, &c.LockedProposal.Proposed)
 	} else if c.Proposal != nil &&
-		c.Proposal.Proposed == c.validators.CustomValidators.DecidesProposal() {
+		c.validators.CustomValidators.ValidateProposal(c.Proposal.Proposed) {
 		prevote = message.NewVote(message.PrevoteType, c.Height, c.Round, &c.Proposal.Proposed)
 	} else {
 		c.log.Info("enterPrevote: vote for nil")
