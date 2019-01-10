@@ -34,9 +34,6 @@ func (v *Validators) GetSelfPubKey() message.PubKey {
 }
 
 func (v *Validators) VerifySignature(msg message.ConsensusMessage) bool {
-	//v.RLock()
-	//defer v.RUnlock()
-
 	val := v.CustomValidators.GetValidator(msg.GetSigner())
 	if val == nil {
 		log.Errorf("ConsensusMessage %s signed by a invalid validator", msg.String())
@@ -46,9 +43,6 @@ func (v *Validators) VerifySignature(msg message.ConsensusMessage) bool {
 }
 
 func (v *Validators) GetVotingPower(address *message.PubKey) int64 {
-	//v.RLock()
-	//defer v.RUnlock()
-
 	val := v.CustomValidators.GetValidator(*address)
 	if val == nil {
 		log.Errorf("%s is not a  validator", *address)
@@ -59,8 +53,9 @@ func (v *Validators) GetVotingPower(address *message.PubKey) int64 {
 }
 
 func (v *Validators) GetTotalVotingPower() int64 {
-	//v.RLock()
-	//defer v.RUnlock()
-
 	return v.CustomValidators.TotalVotingPower()
+}
+
+func (v *Validators) GetValidatorNum() int {
+	return v.CustomValidators.GetValidatorNum()
 }

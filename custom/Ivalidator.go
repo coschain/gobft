@@ -23,6 +23,7 @@ type ICommittee interface {
 	GetValidator(key message.PubKey) IPubValidator
 	IsValidator(key message.PubKey) bool
 	TotalVotingPower() int64
+	GetValidatorNum() int
 
 	GetCurrentProposer(round int) message.PubKey
 	// DecidesProposal decides what will be proposed if this validator is the current

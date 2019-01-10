@@ -76,6 +76,20 @@ func (mr *MockICommitteeMockRecorder) TotalVotingPower() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TotalVotingPower", reflect.TypeOf((*MockICommittee)(nil).TotalVotingPower))
 }
 
+// GetValidatorNum mocks base method
+func (m *MockICommittee) GetValidatorNum() int {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetValidatorNum")
+	ret0, _ := ret[0].(int)
+	return ret0
+}
+
+// GetValidatorNum indicates an expected call of GetValidatorNum
+func (mr *MockICommitteeMockRecorder) GetValidatorNum() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetValidatorNum", reflect.TypeOf((*MockICommittee)(nil).GetValidatorNum))
+}
+
 // GetCurrentProposer mocks base method
 func (m *MockICommittee) GetCurrentProposer(round int) message.PubKey {
 	m.ctrl.T.Helper()

@@ -66,6 +66,7 @@ func TestValidatorsVotes(t *testing.T) {
 	valSet.EXPECT().GetValidator(pubkey4).Return(val1).AnyTimes()
 	valSet.EXPECT().IsValidator(gomock.Any()).Return(true).AnyTimes()
 	valSet.EXPECT().TotalVotingPower().Return(int64(4)).AnyTimes()
+	valSet.EXPECT().GetValidatorNum().Return(3).AnyTimes() // test minor quorum
 	valSet.EXPECT().GetCurrentProposer(gomock.Any()).DoAndReturn(func(round int) message.PubKey {
 		return curProposers[round%4].GetPubKey()
 	}).AnyTimes()
@@ -95,10 +96,16 @@ func TestValidatorsVotes(t *testing.T) {
 
 	// test maj23
 	hvSet1.AddVote(prevote1_1)
+	data, ok := hvSet1.Prevotes(0).MinorQuorum()
+	assert.False(ok)
+
 	hvSet1.AddVote(prevote1_2)
-	data, ok := hvSet1.Prevotes(0).TwoThirdsMajority()
+	data, ok = hvSet1.Prevotes(0).MinorQuorum()
+	assert.True(ok)
+	data, ok = hvSet1.Prevotes(0).TwoThirdsMajority()
 	assert.False(ok)
 	assert.Equal(data, message.NilData)
+
 	hvSet1.AddVote(prevote1_3)
 	data, ok = hvSet1.Prevotes(0).TwoThirdsMajority()
 	assert.True(ok)

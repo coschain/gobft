@@ -29,6 +29,8 @@ type VoteSet struct {
 
 	mtx                 sync.Mutex
 	sum                 int64
+	distinctVoter       int
+	minorQuorum			message.ProposedData
 	maj23               message.ProposedData // First 2/3 majority seen
 	votesByProposedData map[message.ProposedData]*proposedDataVotes
 	conflictingVotes    map[message.PubKey][]*message.Vote // TODO: track conflicting votes
@@ -173,8 +175,14 @@ func (voteSet *VoteSet) addVerifiedVote(vote *message.Vote, votingPower int64) (
 			voteSet.maj23 = vote.Proposed
 		}
 	}
-
 	voteSet.sum += votingPower
+
+	if voteSet.distinctVoter < len(byProposed.votes) {
+		voteSet.distinctVoter = len(byProposed.votes)
+		if voteSet.minorQuorum == message.NilData {
+			voteSet.minorQuorum = vote.Proposed
+		}
+	}
 
 	return true, conflicting
 }
@@ -198,6 +206,22 @@ func (voteSet *VoteSet) IsCommit() bool {
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
 	return voteSet.maj23 != message.NilData
+}
+
+func (voteSet *VoteSet) MinorQuorum() (message.ProposedData, bool) {
+	if voteSet == nil {
+		return message.NilData, false
+	}
+	voteSet.mtx.Lock()
+	defer voteSet.mtx.Unlock()
+
+	valNum := voteSet.validators.GetValidatorNum()
+	if  voteSet.distinctVoter > valNum*2/3 ||
+			valNum < 4 && voteSet.distinctVoter >= (valNum+1)/2 {
+		return 	voteSet.minorQuorum, true
+	}
+
+	return message.NilData, false
 }
 
 func (voteSet *VoteSet) HasTwoThirdsAny() bool {
