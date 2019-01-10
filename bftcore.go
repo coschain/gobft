@@ -587,17 +587,23 @@ func (c *Core) enterCommit(height int64, commitRound int) {
 }
 
 func (c *Core) doCommit(data message.ProposedData) {
-	// if we're the current proposer, generate a Commit msg so that
-	// the app can store and broadcast it
+
+
 	self := c.validators.GetSelfPubKey()
-	records := (*message.Commit)(nil)
-	if c.validators.CustomValidators.GetCurrentProposer(c.CommitRound) == self {
-		records = c.Votes.Precommits(c.CommitRound).MakeCommit()
-		records.CommitTime = c.CommitTime
-		c.validators.Sign(records)
+	records := c.Votes.Precommits(c.CommitRound).MakeCommit()
+
+	if data != records.ProposedData {
+		common.PanicSanity("doCommit() inconsistent committed data")
 	}
 
-	c.validators.CustomValidators.Commit(data, records)
+	// if we're the current proposer, sign the Commit message and broadcast it
+	if c.validators.CustomValidators.GetCurrentProposer(c.CommitRound) == self {
+		records.CommitTime = c.CommitTime
+		c.validators.Sign(records)
+		c.validators.CustomValidators.BroadCast(records)
+	}
+
+	c.validators.CustomValidators.Commit(records)
 
 	appState := c.validators.CustomValidators.GetAppState()
 	c.updateToAppState(appState)

@@ -119,17 +119,17 @@ func (mr *MockICommitteeMockRecorder) ValidateProposal(data interface{}) *gomock
 }
 
 // Commit mocks base method
-func (m *MockICommittee) Commit(p message.ProposedData, commitRecords *message.Commit) error {
+func (m *MockICommittee) Commit(commitRecords *message.Commit) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Commit", p, commitRecords)
+	ret := m.ctrl.Call(m, "Commit", commitRecords)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Commit indicates an expected call of Commit
-func (mr *MockICommitteeMockRecorder) Commit(p, commitRecords interface{}) *gomock.Call {
+func (mr *MockICommitteeMockRecorder) Commit(commitRecords interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockICommittee)(nil).Commit), p, commitRecords)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockICommittee)(nil).Commit), commitRecords)
 }
 
 // GetAppState mocks base method

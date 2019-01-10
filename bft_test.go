@@ -88,13 +88,13 @@ func TestBFT(t *testing.T) {
 		if i != byzantineIdx {
 			committees[i].EXPECT().DecidesProposal().Return(proposedData).AnyTimes()
 		}
-		committees[i].EXPECT().Commit(gomock.Any(), gomock.Any()).DoAndReturn(func(data message.ProposedData, records *message.Commit) error {
+		committees[i].EXPECT().Commit(gomock.Any()).DoAndReturn(func(records *message.Commit) error {
 			s := &message.AppState{
 				LastHeight:       committedStates[i][len(committedStates[i])-1].LastHeight + 1,
-				LastProposedData: data,
+				LastProposedData: records.ProposedData,
 			}
 			committedStates[i] = append(committedStates[i], s)
-			logrus.Infof("core %d committed %v at height %d", i, data, s.LastHeight)
+			logrus.Infof("core %d committed %v at height %d", i, records.ProposedData, s.LastHeight)
 			commitTimes[i]++
 			if commitTimes[i] == commitHeight {
 				close(stopCh[i])
