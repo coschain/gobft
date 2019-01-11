@@ -154,7 +154,7 @@ func TestBFT(t *testing.T) {
 
 	// start
 	for i := 0; i < nodeNum; i++ {
-		cores[i].Start()
+		cores[i].Start(0)
 	}
 
 	for i := 0; i < nodeNum; i++ {

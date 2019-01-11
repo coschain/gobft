@@ -53,13 +53,16 @@ func (c *Core) SetName(n string) {
 	c.log = logrus.WithField("CoreName", c.name)
 }
 
-func (c *Core) Start() error {
+func (c *Core) Start(height int64) error {
 	if err := c.timeoutTicker.Start(); err != nil {
 		return err
 	}
 
-	appState := c.validators.CustomValidators.GetAppState()
-	c.updateToAppState(appState)
+	//appState := c.validators.CustomValidators.GetAppState()
+	initAppState := &message.AppState{
+		LastHeight: height,
+	}
+	c.updateToAppState(initAppState)
 
 	go c.receiveRoutine()
 	c.scheduleRound0(c.GetRoundState())
@@ -194,10 +197,6 @@ func (c *Core) handleMsg(mi msgInfo) {
 	c.log.Debug("handleMsg: ", mi.Msg)
 	var err error
 	msg := mi.Msg
-	if err = msg.ValidateBasic(); err != nil {
-		c.log.Error(err)
-		return
-	}
 
 	switch msg := msg.(type) {
 	case *message.Vote:
@@ -689,7 +688,7 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 		prevotes := c.Votes.Prevotes(vote.Round)
 		c.log.Debug("Added to prevote", " vote ", vote, " prevotes ", prevotes.String())
 
-		// If +2/3 prevotes for a block or nil for *any* round:
+		// If +2/3 prevotes for a data for *any* round:
 		if polkaData, ok := prevotes.TwoThirdsMajority(); ok {
 			c.log.Info("POLKA!!! ", prevotes.String())
 
