@@ -53,16 +53,13 @@ func (c *Core) SetName(n string) {
 	c.log = logrus.WithField("CoreName", c.name)
 }
 
-func (c *Core) Start(height int64) error {
+func (c *Core) Start() error {
 	if err := c.timeoutTicker.Start(); err != nil {
 		return err
 	}
 
-	//appState := c.validators.CustomValidators.GetAppState()
-	initAppState := &message.AppState{
-		LastHeight: height,
-	}
-	c.updateToAppState(initAppState)
+	appState := c.validators.CustomValidators.GetAppState()
+	c.updateToAppState(appState)
 
 	go c.receiveRoutine()
 	c.scheduleRound0(c.GetRoundState())
