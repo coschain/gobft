@@ -48,6 +48,10 @@ func NewCore(vals custom.ICommittee, pVal custom.IPrivValidator) *Core {
 	return c
 }
 
+func (c *Core) SetLogLevel(lv logrus.Level) {
+	logrus.SetLevel(lv)
+}
+
 func (c *Core) SetName(n string) {
 	c.name = n
 	c.log = logrus.WithField("CoreName", c.name)
@@ -344,10 +348,10 @@ func (c *Core) enterPropose(height int64, round int) {
 	}
 
 	if c.validators.CustomValidators.GetCurrentProposer(c.Round) == self {
-		c.log.Info("enterPropose: Our turn to propose", " proposer ", self)
+		c.log.Info("enterPropose: Our turn to propose.", " proposer ", self)
 		c.doPropose(height, round)
 	} else {
-		c.log.Debug("enterPropose: Not our turn to propose", " proposer ",
+		c.log.Debug("enterPropose: Not our turn to propose.", " proposer ",
 			c.validators.CustomValidators.GetCurrentProposer(c.Round), " self ", self)
 	}
 }
@@ -583,8 +587,6 @@ func (c *Core) enterCommit(height int64, commitRound int) {
 }
 
 func (c *Core) doCommit(data message.ProposedData) {
-
-
 	self := c.validators.GetSelfPubKey()
 	records := c.Votes.Precommits(c.CommitRound).MakeCommit()
 
@@ -664,7 +666,7 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 	// Not necessarily a bad peer, but not favourable behaviour.
 	if vote.Height != c.Height {
 		err = ErrVoteHeightMismatch
-		c.log.Info("Vote ignored and not added", "voteHeight", vote.Height, "cHeight", c.Height, "err", err)
+		c.log.Info("Vote ignored and not added", " voteHeight ", vote.Height, " cHeight ", c.Height, " err ", err)
 		return
 	}
 
