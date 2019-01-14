@@ -48,8 +48,8 @@ func NewCore(vals custom.ICommittee, pVal custom.IPrivValidator) *Core {
 	return c
 }
 
-func (c *Core) SetLogLevel(lv logrus.Level) {
-	logrus.SetLevel(lv)
+func (c *Core) SetLogLevel(lv uint32) {
+	logrus.SetLevel(logrus.Level(lv))
 }
 
 func (c *Core) SetName(n string) {
