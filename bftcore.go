@@ -679,7 +679,6 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 	height := c.Height
 	added, err = c.Votes.AddVote(vote)
 	if !added {
-		c.log.Debug("vote not added ", vote.String())
 		if err != nil {
 			c.log.Debug("vote not added with error: ", err)
 		}

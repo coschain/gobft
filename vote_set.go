@@ -125,7 +125,7 @@ func (voteSet *VoteSet) addVote(vote *message.Vote) (added bool, err error) {
 	// Check signature.
 
 	if !voteSet.validators.VerifySignature(vote) {
-		return false, errors.Wrapf(err, "Failed to verify vote with PubKey %s", vote.Address)
+		return false, errors.Wrapf(ErrVoteInvalidSignature, "Failed to verify vote with PubKey %s", vote.Address)
 	}
 
 	// Add vote and get conflicting vote if any.
