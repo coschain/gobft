@@ -117,7 +117,7 @@ func (voteSet *VoteSet) addVote(vote *message.Vote) (added bool, err error) {
 	// If we already know of this vote, return false.
 	if existing, ok := voteSet.getVote(&vote.Proposed, vote.Address); ok {
 		if bytes.Equal(existing.Signature, vote.Signature) {
-			return false, nil // duplicate
+			return false, errors.New("duplicate vote") // duplicate
 		}
 		return false, errors.Wrapf(ErrVoteNonDeterministicSignature, "Existing vote: %v; New vote: %v", existing, vote)
 	}
@@ -131,7 +131,8 @@ func (voteSet *VoteSet) addVote(vote *message.Vote) (added bool, err error) {
 	// Add vote and get conflicting vote if any.
 	added, conflicting := voteSet.addVerifiedVote(vote, voteSet.validators.GetVotingPower(&vote.Address))
 	if conflicting != nil {
-		return added, NewConflictingVoteError()
+		//return added, NewConflictingVoteError()
+		return added, errors.New("conflicting vote")
 	}
 	if !added {
 		common.PanicSanity("Expected to add non-conflicting vote")

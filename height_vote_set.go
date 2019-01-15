@@ -105,7 +105,7 @@ func (hvs *HeightVoteSet) AddVote(vote *message.Vote) (added bool, err error) {
 	hvs.mtx.Lock()
 	defer hvs.mtx.Unlock()
 	if !message.IsVoteTypeValid(vote.Type) {
-		return
+		return false, errors.New("invalid vote type")
 	}
 	voteSet := hvs.getVoteSet(vote.Round, vote.Type)
 	if voteSet == nil {

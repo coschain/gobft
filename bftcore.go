@@ -671,7 +671,7 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 	}
 
 	if vote.Type == message.ProposalType {
-		c.log.Debug("defaultSetProposal")
+		//c.log.Debug("defaultSetProposal")
 		err = c.defaultSetProposal(vote)
 		return
 	}
