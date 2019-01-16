@@ -537,7 +537,7 @@ func (c *Core) enterPrecommit(height int64, round int) {
 			c.LockedProposal.Proposed, polkaData))
 	}
 
-	c.log.Errorf("Got a polkaData %v but we don't have its proposal", polkaData)
+	c.log.Warnf("Got a polkaData %v but we don't have its proposal", polkaData)
 	c.LockedRound = -1
 	c.LockedProposal = nil
 
@@ -746,7 +746,7 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 			if c.Proposal != nil {
 				c.enterPrevote(height, c.Round)
 			} else {
-				c.log.Errorf("receive prevote for ProposedData (%v), but we don't have proposal", vote.Proposed)
+				c.log.Debugf("receive prevote for ProposedData (%v), but we don't have proposal", vote.Proposed)
 			}
 		}
 
@@ -789,7 +789,7 @@ func (c *Core) defaultSetProposal(proposal *message.Vote) error {
 
 	// Does not apply
 	if proposal.Height != c.Height || proposal.Round != c.Round {
-		c.log.Error("mismatch ", proposal)
+		c.log.Warn("mismatch ", proposal)
 		return nil
 	}
 
