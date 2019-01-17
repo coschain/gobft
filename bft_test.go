@@ -2,14 +2,14 @@ package gobft
 
 import (
 	"crypto/sha256"
+	"github.com/coschain/gobft/custom"
+	"github.com/sirupsen/logrus"
 	"strconv"
 	"testing"
 
-	"github.com/coschain/gobft/custom"
 	"github.com/coschain/gobft/custom/mock"
 	"github.com/coschain/gobft/message"
 	"github.com/golang/mock/gomock"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -17,15 +17,23 @@ const nodeNum = 4
 const byzantineIdx = 2
 const commitHeight = 5
 
-func TestBFT(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+var (
+	pubKeys  [nodeNum]message.PubKey
+	pubVals  [nodeNum]*mock.MockIPubValidator
+	privVals [nodeNum]*mock.MockIPrivValidator
+)
 
-	assert := assert.New(t)
+var (
+	stopCh              [nodeNum]chan struct{}
+	commitTimes         [nodeNum]int
+	committedStates     [nodeNum][]*message.AppState
+	curProposers        [nodeNum][]*mock.MockIPubValidator
+	proposedData        message.ProposedData = sha256.Sum256([]byte("hello"))
+	invalidProposedData message.ProposedData = sha256.Sum256([]byte("byzantine"))
+	committees          [nodeNum]*mock.MockICommittee
+)
 
-	// init IPubValidator and IPrivValidator
-	var pubKeys [nodeNum]message.PubKey
-	var pubVals [nodeNum]*mock.MockIPubValidator
+func initValidators(ctrl *gomock.Controller) {
 	for j := 0; j < nodeNum; j++ {
 		i := j
 		pubKeys[i] = message.PubKey("val_pubkey" + strconv.Itoa(i))
@@ -35,7 +43,6 @@ func TestBFT(t *testing.T) {
 		pubVals[i].EXPECT().GetPubKey().Return(pubKeys[i]).AnyTimes()
 	}
 
-	var privVals [nodeNum]*mock.MockIPrivValidator
 	for j := 0; j < nodeNum; j++ {
 		i := j
 		privVals[i] = mock.NewMockIPrivValidator(ctrl)
@@ -44,22 +51,9 @@ func TestBFT(t *testing.T) {
 			return digest
 		}).AnyTimes()
 	}
+}
 
-	// init committee
-	stopCh := make([]chan struct{}, nodeNum)
-	var commitTimes [nodeNum]int
-	var committedStates [nodeNum][]*message.AppState
-	//curProposers := make([]*custom.MockIPubValidator, 0)
-	var curProposers [nodeNum][]*mock.MockIPubValidator
-
-	var proposedData message.ProposedData = sha256.Sum256([]byte("hello"))
-	var invalidProposedData message.ProposedData = sha256.Sum256([]byte("byzantine"))
-	var committees [nodeNum]*mock.MockICommittee
-
-	initState := &message.AppState{
-		LastHeight:       0,
-		LastProposedData: message.NilData,
-	}
+func initCommittee(ctrl *gomock.Controller, byzantineIndex int, initState *message.AppState) {
 	for j := 0; j < nodeNum; j++ {
 		i := j
 
@@ -68,7 +62,6 @@ func TestBFT(t *testing.T) {
 		}
 		commitTimes[i] = 0
 		committedStates[i] = append(committedStates[i], initState)
-		stopCh[i] = make(chan struct{})
 
 		committees[i] = mock.NewMockICommittee(ctrl)
 		committees[i].EXPECT().GetValidator(gomock.Any()).DoAndReturn(func(pubKey message.PubKey) custom.IPubValidator {
@@ -85,7 +78,7 @@ func TestBFT(t *testing.T) {
 			cur := curProposers[i][round%nodeNum]
 			return cur.GetPubKey()
 		}).AnyTimes()
-		if i != byzantineIdx {
+		if i != byzantineIndex {
 			committees[i].EXPECT().DecidesProposal().Return(proposedData).AnyTimes()
 		}
 		committees[i].EXPECT().Commit(gomock.Any()).DoAndReturn(func(records *message.Commit) error {
@@ -97,6 +90,7 @@ func TestBFT(t *testing.T) {
 			logrus.Infof("core %d committed %v at height %d", i, records.ProposedData, s.LastHeight)
 			commitTimes[i]++
 			if commitTimes[i] == commitHeight {
+				logrus.Warn("CCCCClosing chan ", i)
 				close(stopCh[i])
 			}
 
@@ -115,6 +109,26 @@ func TestBFT(t *testing.T) {
 			return ret
 		}).AnyTimes()
 	}
+}
+
+func TestBFT(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	assert := assert.New(t)
+
+	// init IPubValidator and IPrivValidator
+	initValidators(ctrl)
+
+	// init committee
+	for i := 0; i < nodeNum; i++ {
+		stopCh[i] = make(chan struct{})
+	}
+	initState := &message.AppState{
+		LastHeight:       0,
+		LastProposedData: message.NilData,
+	}
+	initCommittee(ctrl, byzantineIdx, initState)
 
 	// init bft core
 	var cores [nodeNum]*Core
@@ -164,5 +178,64 @@ func TestBFT(t *testing.T) {
 	for i := 0; i < nodeNum; i++ {
 		assert.Equal(commitHeight+1, len(committedStates[i]))
 	}
-
 }
+
+//func TestBFTSync(t *testing.T) {
+//	ctrl := gomock.NewController(t)
+//	defer ctrl.Finish()
+//
+//	assert := assert.New(t)
+//
+//	// init IPubValidator and IPrivValidator
+//	initValidators(ctrl)
+//
+//	// init committee
+//	for i := 0; i < nodeNum; i++ {
+//		stopCh[i] = make(chan struct{})
+//	}
+//	initState := &message.AppState{
+//		LastHeight:       0,
+//		LastProposedData: message.NilData,
+//	}
+//	initCommittee(ctrl, -1, initState)
+//
+//	// init bft core
+//	var cores [nodeNum]*Core
+//	for i := 0; i < nodeNum; i++ {
+//		cores[i] = NewCore(committees[i], privVals[i])
+//		cores[i].SetName("core" + strconv.Itoa(i))
+//	}
+//
+//	for i := 0; i < nodeNum; i++ {
+//		ii := i
+//		cores[ii].validators.CustomValidators.(*mock.MockICommittee).EXPECT().
+//			BroadCast(gomock.Any()).DoAndReturn(func(msg message.ConsensusMessage) error {
+//			bytes := msg.Bytes()
+//			ori, err := message.DecodeConsensusMsg(bytes)
+//			assert.Equal(err, nil)
+//			for j := 0; j < nodeNum; j++ {
+//				if ii != j {
+//					cores[j].RecvMsg(ori)
+//				}
+//			}
+//			return nil
+//		}).AnyTimes()
+//		cores[ii].validators.CustomValidators.(*mock.MockICommittee).EXPECT().
+//			ValidateProposal(gomock.Any()).DoAndReturn(func(data message.ProposedData) bool {
+//			return data == cores[ii].validators.CustomValidators.(*mock.MockICommittee).DecidesProposal()
+//		}).AnyTimes()
+//	}
+//
+//	// start
+//	for i := 0; i < nodeNum; i++ {
+//		cores[i].Start()
+//	}
+//
+//	for i := 0; i < nodeNum; i++ {
+//		<-stopCh[i]
+//	}
+//
+//	for i := 0; i < nodeNum; i++ {
+//		assert.Equal(commitHeight+1, len(committedStates[i]))
+//	}
+//}

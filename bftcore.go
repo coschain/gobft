@@ -19,6 +19,7 @@ type Core struct {
 	validators *Validators
 
 	RoundState
+	stateSync *StateSync
 	triggeredTimeoutPrecommit bool
 
 	msgQueue      chan msgInfo
@@ -41,6 +42,7 @@ func NewCore(vals custom.ICommittee, pVal custom.IPrivValidator) *Core {
 		//timeoutTicker: NewTimeoutTicker(),
 		done: make(chan struct{}),
 	}
+	c.stateSync = NewStateSync(c)
 	c.log = logrus.WithField("CoreName", c.name)
 	c.timeoutTicker = NewTimeoutTicker(c)
 	logrus.SetLevel(logrus.InfoLevel)
@@ -181,12 +183,12 @@ func (c *Core) receiveRoutine() {
 		var mi msgInfo
 
 		select {
+		case <-c.done:
+			return
 		case mi = <-c.msgQueue:
 			c.handleMsg(mi)
 		case ti := <-c.timeoutTicker.Chan(): // tockChan:
 			c.handleTimeout(ti, rs)
-		case <-c.done:
-			return
 		}
 	}
 }
@@ -201,6 +203,11 @@ func (c *Core) handleMsg(mi msgInfo) {
 
 	switch msg := msg.(type) {
 	case *message.Vote:
+		// if we're not a validator, just ignore
+		if !c.isValidator() { // TODO: cache
+			return
+		}
+
 		// attempt to add the vote and dupeout the validator if its a duplicate signature
 		// if the vote gives us a 2/3-any or 2/3-one, we transition
 		//var added bool
@@ -391,7 +398,7 @@ func (c *Core) enterPrevote(height int64, round int) {
 // sign the vote, publish on internalMsgQueue and broadcast
 func (c *Core) signAddVote(vote *message.Vote) {
 	// if we're not a validator, do nothing
-	if !c.isValidator() {
+	if !c.isValidator() { // TODO: cache
 		return
 	}
 	c.validators.Sign(vote)
@@ -662,9 +669,15 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 		return
 	}
 
-	// Height mismatch is ignored.
-	// Not necessarily a bad peer, but not favourable behaviour.
-	if vote.Height != c.Height {
+	// If this validator never committed before, it's almost certainly that
+	// it just started and fell far behind the rest. Let it collect votes
+	// from higher height so that it can catch up
+	if c.LastCommit == nil && vote.Height > c.Height {
+		c.stateSync.AddVote(vote)
+		return
+	} else if vote.Height != c.Height {
+		// Height mismatch is ignored.
+		// Not necessarily a bad peer, but not favourable behaviour.
 		err = ErrVoteHeightMismatch
 		c.log.Info("Vote ignored and not added", " voteHeight ", vote.Height, " cHeight ", c.Height, " err ", err)
 		return
@@ -754,18 +767,13 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 		precommits := c.Votes.Precommits(vote.Round)
 		c.log.Debug("Added to precommit", " vote ", vote, " precommits ", precommits.String())
 
-		maj23, ok := precommits.TwoThirdsMajority()
-		if ok {
+		if precommits.HasTwoThirdsMajority() {
 			// Executed as TwoThirdsMajority could be from a higher round
 			c.enterNewRound(height, vote.Round)
 			c.enterPrecommit(height, vote.Round)
-			if maj23 != message.NilData {
-				c.enterCommit(height, vote.Round)
-				if c.cfg.SkipTimeoutCommit && precommits.HasAll() {
-					c.enterNewRound(c.Height, 0)
-				}
-			} else {
-				c.enterPrecommitWait(height, vote.Round)
+			c.enterCommit(height, vote.Round)
+			if c.cfg.SkipTimeoutCommit && precommits.HasAll() {
+				c.enterNewRound(c.Height, 0)
 			}
 		} else if c.Round <= vote.Round && precommits.HasTwoThirdsAny() {
 			c.enterNewRound(height, vote.Round)
