@@ -64,4 +64,6 @@ func (s *StateSync) updateState(height int64, round int, step RoundStepType) {
 	s.core.Height = height
 	s.core.Round = round
 	s.core.Step = step
+
+	s.core.Votes = s.heightVotes[height]
 }

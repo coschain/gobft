@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"runtime/debug"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/coschain/gobft/common"
@@ -24,6 +25,7 @@ type Core struct {
 
 	msgQueue      chan msgInfo
 	timeoutTicker TimeoutTicker
+	started		  int32
 	done          chan struct{}
 
 	log *logrus.Entry
@@ -39,13 +41,14 @@ func NewCore(vals custom.ICommittee, pVal custom.IPrivValidator) *Core {
 		cfg:        DefaultConfig(),
 		validators: NewValidators(vals, pVal),
 		msgQueue:   make(chan msgInfo, msgQueueSize),
+		started:    0,
 		//timeoutTicker: NewTimeoutTicker(),
 		done: make(chan struct{}),
 	}
 	c.stateSync = NewStateSync(c)
 	c.log = logrus.WithField("CoreName", c.name)
 	c.timeoutTicker = NewTimeoutTicker(c)
-	logrus.SetLevel(logrus.InfoLevel)
+	logrus.SetLevel(logrus.DebugLevel)
 
 	return c
 }
@@ -69,6 +72,7 @@ func (c *Core) Start() error {
 
 	go c.receiveRoutine()
 	c.scheduleRound0(c.GetRoundState())
+	atomic.StoreInt32(&c.started, 1)
 	return nil
 }
 
@@ -98,7 +102,9 @@ func (c *Core) RecvMsg(msg message.ConsensusMessage) {
 		c.log.Error(err)
 		return
 	}
-	c.sendInternalMessage(msgInfo{msg})
+	if atomic.LoadInt32(&c.started) == 1 {
+		c.sendInternalMessage(msgInfo{msg})
+	}
 
 }
 
@@ -124,7 +130,7 @@ func (c *Core) updateToAppState(appState *message.AppState) {
 			c.Height, appState.LastHeight))
 	}
 
-	var lastPrecommits *VoteSet
+	var lastPrecommits *VoteSet = nil
 	if c.CommitRound > -1 && c.Votes != nil {
 		if !c.Votes.Precommits(c.CommitRound).HasTwoThirdsMajority() {
 			common.PanicSanity("updateToState(state) called but last Precommit round didn't have +2/3")
