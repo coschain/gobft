@@ -679,7 +679,9 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 	// it just started and fell far behind the rest. Let it collect votes
 	// from higher height so that it can catch up
 	if c.LastCommit == nil && vote.Height > c.Height {
-		c.stateSync.AddVote(vote)
+		if vote.Type != message.ProposalType {
+			c.stateSync.AddVote(vote)
+		}
 		return
 	} else if vote.Height != c.Height {
 		// Height mismatch is ignored.
