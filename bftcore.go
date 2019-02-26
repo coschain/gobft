@@ -607,13 +607,12 @@ func (c *Core) doCommit(data message.ProposedData) {
 		common.PanicSanity("doCommit() inconsistent committed data")
 	}
 
-	// if we're the current proposer, sign the Commit message and broadcast it
+	// sign the Commit msg anyway as users might want to store it as an evidence
+	records.CommitTime = c.CommitTime
+	c.validators.Sign(records)
+	
+	// if we're the current proposer, broadcast it
 	if c.validators.CustomValidators.GetCurrentProposer(c.CommitRound) == self {
-		records.CommitTime = c.CommitTime
-		c.validators.Sign(records)
-		if err := records.ValidateBasic(); err != nil {
-			panic(err)
-		}
 		c.validators.CustomValidators.BroadCast(records)
 	}
 
