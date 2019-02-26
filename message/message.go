@@ -143,8 +143,12 @@ func (vote *Vote) ValidateBasic() error {
 
 	// NOTE: Timestamp validation is subtle and handled elsewhere.
 
-	if len(vote.Signature) == 0 {
-		return errors.New("Signature is missing")
+	if vote.Address == "" {
+		return errors.New("Missing vote address")
+	}
+
+	if vote.Signature == nil || len(vote.Signature) == 0 {
+		return errors.New("Missing vote signature")
 	}
 	//if len(vote.Signature) > MaxSignatureSize {
 	//	return fmt.Errorf("Signature is too big (max: %d)", MaxSignatureSize)
@@ -284,6 +288,14 @@ func (commit *Commit) ValidateBasic() error {
 			return fmt.Errorf("Invalid commit precommit round. Expected %v, got %v",
 				round, precommit.Round)
 		}
+	}
+
+	if commit.Address == "" {
+		return errors.New("Missing commit address")
+	}
+
+	if commit.Signature == nil || len(commit.Signature) == 0 {
+		return errors.New("Missing commit signature")
 	}
 	return nil
 }
