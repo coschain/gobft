@@ -611,6 +611,9 @@ func (c *Core) doCommit(data message.ProposedData) {
 	if c.validators.CustomValidators.GetCurrentProposer(c.CommitRound) == self {
 		records.CommitTime = c.CommitTime
 		c.validators.Sign(records)
+		if err := records.ValidateBasic(); err != nil {
+			panic(err)
+		}
 		c.validators.CustomValidators.BroadCast(records)
 	}
 

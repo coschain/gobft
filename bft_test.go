@@ -171,6 +171,7 @@ func TestBFT(t *testing.T) {
 
 	// start
 	for i := 0; i < nodeNum; i++ {
+		cores[i].SetLogLevel(4)
 		cores[i].Start()
 	}
 
