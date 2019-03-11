@@ -75,3 +75,15 @@ type IPrivValidator interface {
 
 # Data flow and state transition
 ![cmd-markdown-logo](resource/goBFT-dataflow.jpeg)
+
+# TODO list
+- [ ] **system halt and recover**
+The whole network might halt and stop voting process under extreme circumstances. Taking the following scecario for example:
+There are 4 validators(A, B, C, D) in totally, in the first round of the vote, both A and B received +2/3 prevotes for proposal `x`. So they broadcasted precommits and locked on `x`. Meanwhile C and D didn't get +2/3 prevotes due to network issues so they broadcasted precommits for `nil`. No consensus can be reached in this round so all 4 validators started a new round. In this round, another validator was chosen as the current proposer and it proposed `y`. Since A is locked on `x`, A prevoted for `x`. C and D didn't lock on any previous proposal so they prevoted for `y`. Now say B is byzantine and it prevoted for `y`. Now C and D saw +2/3 prevotes for `y` and they both precommitted for `y` and locked on it. If any of prevotes for `y` didn't reach A due to network issue and B deliberately shut himself down, the rest 3 validators was locked on 2 different proposals and will never reach consensus.
+> The above example has 1 malicious node and 1 node with network failure so there're 2 byzantine validators out of 4, which is more than what bft protocol can handle. With 1 byzantine validator, bft can work well only if there's no message loss during network transmission. However it's too naive to make such assumption in real life. Additional mechanism should be introduce so that validators can detect the halt and recover from it.
+
+- [ ] **message retransmission**
+gobft requires that at least +2/3 of the vote messages are successfully delivered to at least +2/3 validators. Validators should be able to proactively request missing votes from other validators.
+
+- [ ] **special handling when number of validators is < 3**
+The mininum requirement of validators now is 3. 
