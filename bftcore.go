@@ -3,7 +3,6 @@ package gobft
 import (
 	"fmt"
 	"reflect"
-	"runtime/debug"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -165,6 +164,7 @@ func (c *Core) updateToAppState(appState *message.AppState) {
 // Updates (state transitions) happen on timeouts, complete proposals, and 2/3 majorities.
 // Core must be locked before any internal state is updated.
 func (c *Core) receiveRoutine() {
+	/*
 	onExit := func(c *Core) {
 		close(c.done)
 	}
@@ -183,6 +183,7 @@ func (c *Core) receiveRoutine() {
 			onExit(c)
 		}
 	}()
+	*/
 
 	for {
 		rs := c.RoundState
