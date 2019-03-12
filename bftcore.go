@@ -44,6 +44,7 @@ func NewCore(vals custom.ICommittee, pVal custom.IPrivValidator) *Core {
 		//timeoutTicker: NewTimeoutTicker(),
 		done: make(chan struct{}),
 	}
+	//c.cfg.SkipTimeoutCommit = true
 	c.stateSync = NewStateSync(c)
 	c.log = logrus.WithField("CoreName", c.name)
 	c.timeoutTicker = NewTimeoutTicker(c)
@@ -215,9 +216,6 @@ func (c *Core) handleMsg(mi msgInfo) {
 			return
 		}
 
-		// attempt to add the vote and dupeout the validator if its a duplicate signature
-		// if the vote gives us a 2/3-any or 2/3-one, we transition
-		//var added bool
 		_, err = c.tryAddVote(msg)
 
 		if err == ErrAddingVote {
@@ -329,9 +327,6 @@ func (c *Core) isValidator() bool {
 	return c.validators.CustomValidators.IsValidator(self)
 }
 
-// Enter (CreateEmptyBlocks): from enterNewRound(height,round)
-// Enter (CreateEmptyBlocks, CreateEmptyBlocksInterval > 0 ): after enterNewRound(height,round), after timeout of CreateEmptyBlocksInterval
-// Enter (!CreateEmptyBlocks) : after enterNewRound(height,round), once txs are in the mempool
 func (c *Core) enterPropose(height int64, round int) {
 	if c.Height != height || round < c.Round || (c.Round == round && RoundStepPropose <= c.Step) {
 		c.log.Debug(fmt.Sprintf("enterPropose(%v/%v): Invalid args. Current step: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
@@ -801,8 +796,8 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 func (c *Core) defaultSetProposal(proposal *message.Vote) error {
 	// Already have one
 	if c.Proposal != nil {
-		c.log.Debugf("Already got proposal %v from %s, get another proposal %v from %s",
-			c.Proposal.Proposed, c.Proposal.Address, proposal.Proposed, proposal.Address)
+		//c.log.Debugf("Already got proposal %v from %s, get another proposal %v from %s",
+		//	c.Proposal.Proposed, c.Proposal.Address, proposal.Proposed, proposal.Address)
 		return nil
 	}
 
@@ -829,6 +824,7 @@ func (c *Core) defaultSetProposal(proposal *message.Vote) error {
 	if c.validators.CustomValidators.ValidateProposal(proposal.Proposed) {
 		c.Proposal = proposal
 		c.log.Debug("Accept proposal", " proposal ", proposal)
+		c.enterPrevote(c.Height, c.Round)
 	} else {
 		c.log.Warnf("invalid proposal, want %v got %v",
 			c.validators.CustomValidators.DecidesProposal(), proposal.Proposed)

@@ -86,4 +86,4 @@ There are 4 validators(A, B, C, D) in totally, in the first round of the vote, b
 gobft requires that at least +2/3 of the vote messages are successfully delivered to at least +2/3 validators. Validators should be able to proactively request missing votes from other validators.
 
 - [ ] **special handling when number of validators is < 3**
-The mininum requirement of validators now is 3. 
+The mininum requirement of validators now is 3.
