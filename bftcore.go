@@ -44,6 +44,7 @@ func NewCore(vals custom.ICommittee, pVal custom.IPrivValidator) *Core {
 		//timeoutTicker: NewTimeoutTicker(),
 		done: make(chan struct{}),
 	}
+	//c.cfg.SkipTimeoutCommit = true
 	c.stateSync = NewStateSync(c)
 	c.log = logrus.WithField("CoreName", c.name)
 	c.timeoutTicker = NewTimeoutTicker(c)
@@ -215,9 +216,6 @@ func (c *Core) handleMsg(mi msgInfo) {
 			return
 		}
 
-		// attempt to add the vote and dupeout the validator if its a duplicate signature
-		// if the vote gives us a 2/3-any or 2/3-one, we transition
-		//var added bool
 		_, err = c.tryAddVote(msg)
 
 		if err == ErrAddingVote {
@@ -265,8 +263,12 @@ func (c *Core) handleTimeout(ti timeoutInfo, rs RoundState) {
 		c.enterPropose(ti.Height, 0)
 	case RoundStepPropose:
 		c.enterPrevote(ti.Height, ti.Round)
+	case RoundStepPrevoteFetch:
+		c.fetchMissingVotes()
 	case RoundStepPrevoteWait:
 		c.enterPrecommit(ti.Height, ti.Round)
+	case RoundStepPrecommitFetch:
+		c.fetchMissingVotes()
 	case RoundStepPrecommitWait:
 		c.enterPrecommit(ti.Height, ti.Round)
 		c.enterNewRound(ti.Height, ti.Round+1)
@@ -329,9 +331,6 @@ func (c *Core) isValidator() bool {
 	return c.validators.CustomValidators.IsValidator(self)
 }
 
-// Enter (CreateEmptyBlocks): from enterNewRound(height,round)
-// Enter (CreateEmptyBlocks, CreateEmptyBlocksInterval > 0 ): after enterNewRound(height,round), after timeout of CreateEmptyBlocksInterval
-// Enter (!CreateEmptyBlocks) : after enterNewRound(height,round), once txs are in the mempool
 func (c *Core) enterPropose(height int64, round int) {
 	if c.Height != height || round < c.Round || (c.Round == round && RoundStepPropose <= c.Step) {
 		c.log.Debug(fmt.Sprintf("enterPropose(%v/%v): Invalid args. Current step: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
@@ -382,24 +381,50 @@ func (c *Core) doPropose(height int64, round int) {
 	c.Proposal = proposal
 }
 
+func (c *Core) fetchMissingVotes() {
+	var fvr *message.FetchVotesReq
+	var step RoundStepType
+	if c.Step == RoundStepPrevoteFetch {
+		fvr = c.Votes.Prevotes(c.Round).MakeFetchVotesReq()
+		step = RoundStepPrevoteFetch
+	} else if c.Step == RoundStepPrecommitFetch {
+		fvr = c.Votes.Precommits(c.Round).MakeFetchVotesReq()
+		step = RoundStepPrecommitFetch
+	} else {
+		return
+	}
+	c.validators.Sign(fvr)
+	c.validators.CustomValidators.BroadCast(fvr)
+
+	c.scheduleTimeout(FetchInterval, c.Height, c.Round, step)
+}
+
 func (c *Core) enterPrevote(height int64, round int) {
 	if c.Height != height || round < c.Round || (c.Round == round && RoundStepPrevote <= c.Step) {
 		c.log.Debug(fmt.Sprintf("enterPrevote(%v/%v): Invalid args. Current step: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
 		return
 	}
 
-	defer func() {
-		// Done enterPrevote:
-		c.updateRoundStep(round, RoundStepPrevote)
-	}()
-
 	c.log.Info(fmt.Sprintf("enterPrevote(%v/%v). Current: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
 
 	// Sign and broadcast vote as necessary
 	c.doPrevote(height, round)
+	c.updateRoundStep(round, RoundStepPrevote)
 
+	c.enterPrevoteFetch(height, round)
 	// Once `addVote` hits any +2/3 prevotes, we will go to PrevoteWait
 	// (so we have more time to try and collect +2/3 prevotes for a single block)
+}
+
+// it calls fetchMissingVotes every sec unless any +2/3 prevotes received
+func (c *Core) enterPrevoteFetch(height int64, round int) {
+	c.updateRoundStep(round, RoundStepPrevoteFetch)
+	c.scheduleTimeout(FetchInterval, height, round, RoundStepPrevoteFetch)
+}
+
+func (c *Core) enterPrecommitFetch(height int64, round int) {
+	c.updateRoundStep(round, RoundStepPrecommitFetch)
+	c.scheduleTimeout(FetchInterval, height, round, RoundStepPrecommitFetch)
 }
 
 // sign the vote, publish on internalMsgQueue and broadcast
@@ -484,6 +509,7 @@ func (c *Core) enterPrecommit(height int64, round int) {
 	defer func() {
 		// Done enterPrecommit:
 		c.updateRoundStep(round, RoundStepPrecommit)
+		c.enterPrecommitFetch(c.Height, c.Round)
 	}()
 
 	// check for a polkaData
@@ -714,7 +740,6 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 		prevotes := c.Votes.Prevotes(vote.Round)
 		c.log.Debug("Added to prevote", " vote ", vote, " prevotes ", prevotes.String())
 
-		// If +2/3 prevotes for a data for *any* round:
 		if polkaData, ok := prevotes.TwoThirdsMajority(); ok {
 			c.log.Info("POLKA!!! ", prevotes.String())
 
@@ -766,7 +791,7 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 				c.enterPrevoteWait(height, vote.Round)
 			}
 		} else if RoundStepPrevote > c.Step {
-			// If the proposal is now complete, enter prevote of c.Round.
+			// If the proposal is received, enter prevote of c.Round.
 			if c.Proposal != nil {
 				c.enterPrevote(height, c.Round)
 			} else {
@@ -801,8 +826,8 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 func (c *Core) defaultSetProposal(proposal *message.Vote) error {
 	// Already have one
 	if c.Proposal != nil {
-		c.log.Debugf("Already got proposal %v from %s, get another proposal %v from %s",
-			c.Proposal.Proposed, c.Proposal.Address, proposal.Proposed, proposal.Address)
+		//c.log.Debugf("Already got proposal %v from %s, get another proposal %v from %s",
+		//	c.Proposal.Proposed, c.Proposal.Address, proposal.Proposed, proposal.Address)
 		return nil
 	}
 
@@ -829,6 +854,7 @@ func (c *Core) defaultSetProposal(proposal *message.Vote) error {
 	if c.validators.CustomValidators.ValidateProposal(proposal.Proposed) {
 		c.Proposal = proposal
 		c.log.Debug("Accept proposal", " proposal ", proposal)
+		c.enterPrevote(c.Height, c.Round)
 	} else {
 		c.log.Warnf("invalid proposal, want %v got %v",
 			c.validators.CustomValidators.DecidesProposal(), proposal.Proposed)
