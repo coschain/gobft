@@ -12,14 +12,16 @@ type RoundStepType uint8 // These must be numeric, ordered.
 
 // RoundStepType
 const (
-	RoundStepNewHeight     = RoundStepType(0x01) // Wait til CommitTime + timeoutCommit
-	RoundStepNewRound      = RoundStepType(0x02) // Setup new round and go to RoundStepPropose
-	RoundStepPropose       = RoundStepType(0x03) // Did propose, gossip proposal
-	RoundStepPrevote       = RoundStepType(0x04) // Did prevote, gossip prevotes
-	RoundStepPrevoteWait   = RoundStepType(0x05) // Did receive any +2/3 prevotes, start timeout
-	RoundStepPrecommit     = RoundStepType(0x06) // Did precommit, gossip precommits
-	RoundStepPrecommitWait = RoundStepType(0x07) // Did receive any +2/3 precommits, start timeout
-	RoundStepCommit        = RoundStepType(0x08) // Entered commit state machine
+	RoundStepNewHeight      = RoundStepType(0x01) // Wait til CommitTime + timeoutCommit
+	RoundStepNewRound       = RoundStepType(0x02) // Setup new round and go to RoundStepPropose
+	RoundStepPropose        = RoundStepType(0x03) // Did propose, gossip proposal
+	RoundStepPrevote        = RoundStepType(0x04) // Did prevote, gossip prevotes
+	RoundStepPrevoteFetch   = RoundStepType(0x05) // Waiting for 2/3 Any prevotes, fetch votes every second
+	RoundStepPrevoteWait    = RoundStepType(0x06) // Did receive any +2/3 prevotes, start timeout
+	RoundStepPrecommit      = RoundStepType(0x07) // Did precommit, gossip precommits
+	RoundStepPrecommitFetch = RoundStepType(0x08) // Waiting for 2/3 Any precommits
+	RoundStepPrecommitWait  = RoundStepType(0x09) // Did receive any +2/3 precommits, start timeout
+	RoundStepCommit         = RoundStepType(0x0a) // Entered commit state machine
 	// NOTE: RoundStepNewHeight acts as RoundStepCommitWait.
 
 	// NOTE: Update IsValid method if you change this!
@@ -49,7 +51,7 @@ func (ti *timeoutInfo) String() string {
 
 // IsValid returns true if the step is valid, false if unknown/undefined.
 func (rs RoundStepType) IsValid() bool {
-	return uint8(rs) >= 0x01 && uint8(rs) <= 0x08
+	return uint8(rs) >= 0x01 && uint8(rs) <= 0x0a
 }
 
 // String returns a string

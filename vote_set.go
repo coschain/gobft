@@ -30,7 +30,7 @@ type VoteSet struct {
 	mtx                 sync.Mutex
 	sum                 int64
 	distinctVoter       int
-	minorQuorum			message.ProposedData
+	minorQuorum         message.ProposedData
 	maj23               message.ProposedData // First 2/3 majority seen
 	votesByProposedData map[message.ProposedData]*proposedDataVotes
 	conflictingVotes    map[message.PubKey][]*message.Vote // TODO: track conflicting votes
@@ -217,9 +217,9 @@ func (voteSet *VoteSet) MinorQuorum() (message.ProposedData, bool) {
 	defer voteSet.mtx.Unlock()
 
 	valNum := voteSet.validators.GetValidatorNum()
-	if  voteSet.distinctVoter > valNum*2/3 ||
-			valNum < 4 && voteSet.distinctVoter >= (valNum+1)/2 {
-		return 	voteSet.minorQuorum, true
+	if voteSet.distinctVoter > valNum*2/3 ||
+		valNum < 4 && voteSet.distinctVoter >= (valNum+1)/2 {
+		return voteSet.minorQuorum, true
 	}
 
 	return message.NilData, false
@@ -302,6 +302,21 @@ func (voteSet *VoteSet) MakeCommit() *message.Commit {
 	return &message.Commit{
 		ProposedData: voteSet.maj23,
 		Precommits:   voteSet.votesByProposedData[voteSet.maj23].getAllVotes(),
+	}
+}
+
+func (voteSet *VoteSet) MakeFetchVotesReq() *message.FetchVotesReq {
+	voters := make([]message.PubKey, 0, 21)
+	for _, pd := range voteSet.votesByProposedData {
+		for pk := range pd.votes {
+			voters = append(voters, pk)
+		}
+	}
+	return &message.FetchVotesReq{
+		Type:   voteSet.type_,
+		Height: voteSet.height,
+		Round:  voteSet.round,
+		Voters: voters,
 	}
 }
 

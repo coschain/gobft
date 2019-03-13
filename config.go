@@ -6,6 +6,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+var FetchInterval  = time.Second
+
 type Config struct {
 	TimeoutPropose        time.Duration `mapstructure:"timeout_propose"`
 	TimeoutProposeDelta   time.Duration `mapstructure:"timeout_propose_delta"`

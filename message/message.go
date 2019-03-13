@@ -147,7 +147,7 @@ func (vote *Vote) ValidateBasic() error {
 		return errors.New("Missing vote address")
 	}
 
-	if vote.Signature == nil || len(vote.Signature) == 0 {
+	if len(vote.Signature) == 0 {
 		return errors.New("Missing vote signature")
 	}
 	//if len(vote.Signature) > MaxSignatureSize {
@@ -294,12 +294,80 @@ func (commit *Commit) ValidateBasic() error {
 		return errors.New("Missing commit address")
 	}
 
-	if commit.Signature == nil || len(commit.Signature) == 0 {
+	if len(commit.Signature) == 0 {
 		return errors.New("Missing commit signature")
 	}
 	return nil
 }
 
 func (commit *Commit) String() string {
+	return "" // TODO:
+}
+
+type FetchVotesReq struct {
+	Type   VoteType `json:"type"`
+	Height int64    `json:"height"`
+	Round  int      `json:"round"`
+	// Invoker indicates who wants the votes
+	Invoker PubKey `json:"invoker"`
+	// Voters indicates the validators from whom @Invoker currently receive vote
+	Voters    []PubKey `json:"voters"`
+	Signature []byte   `json:"signature"`
+}
+
+func (fvr *FetchVotesReq) SetSigner(key PubKey) {
+	fvr.Invoker = key
+}
+
+func (fvr *FetchVotesReq) GetSigner() PubKey {
+	return fvr.Invoker
+}
+
+func (fvr *FetchVotesReq) SetSignature(sig []byte) {
+	fvr.Signature = sig
+}
+
+func (fvr *FetchVotesReq) GetSignature() []byte {
+	return fvr.Signature
+}
+
+func (fvr *FetchVotesReq) Digest() []byte {
+	buf := &bytes.Buffer{}
+	binary.Write(buf, binary.BigEndian, fvr.Type)
+	binary.Write(buf, binary.BigEndian, fvr.Height)
+	binary.Write(buf, binary.BigEndian, fvr.Round)
+	binary.Write(buf, binary.BigEndian, fvr.Invoker)
+	for i := range fvr.Voters {
+		binary.Write(buf, binary.BigEndian, fvr.Voters[i])
+	}
+	h := sha256.Sum256(buf.Bytes())
+	return h[:]
+}
+
+func (fvr *FetchVotesReq) Bytes() []byte {
+	return cdcEncode(fvr)
+}
+
+// ValidateBasic performs basic validation that doesn't involve state data.
+// Does not actually check the cryptographic signatures.
+func (fvr *FetchVotesReq) ValidateBasic() error {
+	if fvr.Type != PrevoteType && fvr.Type != PrecommitType {
+		return errors.New("Invalid type")
+	}
+	if fvr.Invoker == "" {
+		return errors.New("Invoker is empty")
+	}
+
+	if len(fvr.Voters) > 21 {
+		return errors.New("Voters list too long")
+	}
+
+	if len(fvr.Signature) == 0 {
+		return errors.New("Missing signature")
+	}
+	return nil
+}
+
+func (fvr *FetchVotesReq) String() string {
 	return "" // TODO:
 }
