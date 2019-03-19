@@ -27,7 +27,7 @@ type Core struct {
 	started		  int32
 	done          chan struct{}
 
-	log *logrus.Entry
+	log *logrus.Logger
 
 	sync.RWMutex
 
@@ -46,20 +46,20 @@ func NewCore(vals custom.ICommittee, pVal custom.IPrivValidator) *Core {
 	}
 	//c.cfg.SkipTimeoutCommit = true
 	c.stateSync = NewStateSync(c)
-	c.log = logrus.WithField("CoreName", c.name)
 	c.timeoutTicker = NewTimeoutTicker(c)
 	logrus.SetLevel(logrus.DebugLevel)
 
 	return c
 }
 
-func (c *Core) SetLogLevel(lv uint32) {
-	logrus.SetLevel(logrus.Level(lv))
+func (c *Core) SetLogger(lg *logrus.Logger) {
+	c.log = lg
+	//logrus.SetLevel(logrus.Level(lv))
 }
 
 func (c *Core) SetName(n string) {
 	c.name = n
-	c.log = logrus.WithField("CoreName", c.name)
+	c.log.WithField("CoreName", c.name)
 }
 
 func (c *Core) Start() error {
