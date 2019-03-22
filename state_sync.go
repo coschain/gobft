@@ -16,6 +16,13 @@ func NewStateSync(c *Core) *StateSync {
 
 func (s *StateSync) AddVote(v *message.Vote) {
 	s.core.log.Info("[StateSync] AddVote ", v.String())
+
+	for k := range s.heightVotes {
+		if k <= s.core.Height {
+			delete(s.heightVotes, k)
+		}
+	}
+
 	votesByHeight, ok := s.heightVotes[v.Height]
 	if !ok {
 		votesByHeight = NewHeightVoteSet(v.Height, s.core.validators)
@@ -66,4 +73,5 @@ func (s *StateSync) updateState(height int64, round int, step RoundStepType) {
 	s.core.Step = step
 
 	s.core.Votes = s.heightVotes[height]
+	delete(s.heightVotes, height)
 }

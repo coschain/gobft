@@ -113,6 +113,7 @@ func TestBFT(t *testing.T) {
 	var cores [nodeNum]*Core
 	for i := 0; i < nodeNum; i++ {
 		cores[i] = NewCore(committees[i], privVals[i])
+		cores[i].SetLogger(logrus.New())
 		cores[i].SetName("core" + strconv.Itoa(i))
 	}
 
@@ -171,7 +172,6 @@ func TestBFT(t *testing.T) {
 
 	// start
 	for i := 0; i < nodeNum; i++ {
-		cores[i].SetLogLevel(4)
 		cores[i].Start()
 	}
 
@@ -208,6 +208,7 @@ func TestStateSync(t *testing.T) {
 	var cores [nodeNum]*Core
 	for i := 0; i < nodeNum; i++ {
 		cores[i] = NewCore(committees[i], privVals[i])
+		cores[i].SetLogger(logrus.New())
 		cores[i].SetName("core" + strconv.Itoa(i))
 	}
 

@@ -31,6 +31,7 @@ func RegisterConsensusMessages(cdc *amino.Codec) {
 	cdc.RegisterInterface((*ConsensusMessage)(nil), nil)
 	cdc.RegisterConcrete(&Vote{}, "gobft/Vote", nil)
 	cdc.RegisterConcrete(&Commit{}, "gobft/Commit", nil)
+	cdc.RegisterConcrete(&FetchVotesReq{}, "gobft/FetchVotesReq", nil)
 }
 
 func DecodeConsensusMsg(bz []byte) (msg ConsensusMessage, err error) {
