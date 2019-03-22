@@ -7,10 +7,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/coschain/gobft/common"
 	"github.com/coschain/gobft/custom"
 	"github.com/coschain/gobft/message"
-	"github.com/sirupsen/logrus"
 )
 
 type Core struct {
@@ -19,12 +19,13 @@ type Core struct {
 	validators *Validators
 
 	RoundState
-	stateSync *StateSync
+	stateSync                 *StateSync
 	triggeredTimeoutPrecommit bool
+	hasRecvCommitRecords      bool
 
 	msgQueue      chan msgInfo
 	timeoutTicker TimeoutTicker
-	started		  int32
+	started       int32
 	done          chan struct{}
 
 	log *logrus.Logger
@@ -166,24 +167,24 @@ func (c *Core) updateToAppState(appState *message.AppState) {
 // Core must be locked before any internal state is updated.
 func (c *Core) receiveRoutine() {
 	/*
-	onExit := func(c *Core) {
-		close(c.done)
-	}
-
-	defer func() {
-		if r := recover(); r != nil {
-			c.log.Error("CONSENSUS FAILURE!!!", " err ", r, " stack ", string(debug.Stack()))
-			// stop gracefully
-			//
-			// NOTE: We most probably shouldn't be running any further when there is
-			// some unexpected panic. Some unknown error happened, and so we don't
-			// know if that will result in the validator signing an invalid thing. It
-			// might be worthwhile to explore a mechanism for manual resuming via
-			// some console or secure RPC system, but for now, halting the chain upon
-			// unexpected consensus bugs sounds like the better option.
-			onExit(c)
+		onExit := func(c *Core) {
+			close(c.done)
 		}
-	}()
+
+		defer func() {
+			if r := recover(); r != nil {
+				c.log.Error("CONSENSUS FAILURE!!!", " err ", r, " stack ", string(debug.Stack()))
+				// stop gracefully
+				//
+				// NOTE: We most probably shouldn't be running any further when there is
+				// some unexpected panic. Some unknown error happened, and so we don't
+				// know if that will result in the validator signing an invalid thing. It
+				// might be worthwhile to explore a mechanism for manual resuming via
+				// some console or secure RPC system, but for now, halting the chain upon
+				// unexpected consensus bugs sounds like the better option.
+				onExit(c)
+			}
+		}()
 	*/
 
 	for {
@@ -232,7 +233,20 @@ func (c *Core) handleMsg(mi msgInfo) {
 		// TODO: If rs.Height == vote.Height && rs.Round < vote.Round,
 		// the peer is sending us CatchupCommit precommits.
 		// We could make note of this and help filter in broadcastHasVoteMessage().
+	// case *message.FetchVotesReq:
+
 	case *message.Commit:
+		if err := msg.ValidateBasic(); err != nil {
+			return
+		}
+		if msg.Height() == c.Height {
+			c.hasRecvCommitRecords = true
+		}
+		if msg.Height() >= c.Height {
+			for i := range msg.Precommits {
+				c.tryAddVote(msg.Precommits[i])
+			}
+		}
 	default:
 		c.log.Error("Unknown msg type ", reflect.TypeOf(msg))
 	}
@@ -411,7 +425,7 @@ func (c *Core) enterPrevote(height int64, round int) {
 	c.doPrevote(height, round)
 	c.updateRoundStep(round, RoundStepPrevote)
 
-	c.enterPrevoteFetch(height, round)
+	// c.enterPrevoteFetch(height, round)
 	// Once `addVote` hits any +2/3 prevotes, we will go to PrevoteWait
 	// (so we have more time to try and collect +2/3 prevotes for a single block)
 }
@@ -509,7 +523,7 @@ func (c *Core) enterPrecommit(height int64, round int) {
 	defer func() {
 		// Done enterPrecommit:
 		c.updateRoundStep(round, RoundStepPrecommit)
-		c.enterPrecommitFetch(c.Height, c.Round)
+		//c.enterPrecommitFetch(c.Height, c.Round)
 	}()
 
 	// check for a polkaData
@@ -627,7 +641,7 @@ func (c *Core) enterCommit(height int64, commitRound int) {
 }
 
 func (c *Core) doCommit(data message.ProposedData) {
-	self := c.validators.GetSelfPubKey()
+	//self := c.validators.GetSelfPubKey()
 	records := c.Votes.Precommits(c.CommitRound).MakeCommit()
 
 	if data != records.ProposedData {
@@ -637,9 +651,8 @@ func (c *Core) doCommit(data message.ProposedData) {
 	// sign the Commit msg anyway as users might want to store it as an evidence
 	records.CommitTime = c.CommitTime
 	c.validators.Sign(records)
-	
-	// if we're the current proposer, broadcast it
-	if c.validators.CustomValidators.GetCurrentProposer(c.CommitRound) == self {
+
+	if !c.hasRecvCommitRecords {
 		c.validators.CustomValidators.BroadCast(records)
 	}
 
@@ -704,15 +717,19 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 		return
 	}
 
-	// If this validator never committed before, it's almost certainly that
-	// it just started and fell far behind the rest. Let it collect votes
-	// from higher height so that it can catch up
-	if c.LastCommit == nil && vote.Height > c.Height {
-		if vote.Type != message.ProposalType {
-			c.stateSync.AddVote(vote)
+	if vote.Height > c.Height {
+		// If this validator never committed before, it's almost certainly that
+		// it just started and fell far behind the rest. Let it collect votes
+		// from higher height so that it can catch up
+		if c.LastCommit == nil || vote.Height < c.Height+3 {
+			if vote.Type != message.ProposalType {
+				c.stateSync.AddVote(vote)
+			}
+			return
 		}
-		return
-	} else if vote.Height != c.Height {
+	}
+
+	if vote.Height != c.Height {
 		// Height mismatch is ignored.
 		// Not necessarily a bad peer, but not favourable behaviour.
 		err = ErrVoteHeightMismatch
