@@ -48,13 +48,13 @@ func NewCore(vals custom.ICommittee, pVal custom.IPrivValidator) *Core {
 	//c.cfg.SkipTimeoutCommit = true
 	c.stateSync = NewStateSync(c)
 	c.timeoutTicker = NewTimeoutTicker(c)
-	logrus.SetLevel(logrus.DebugLevel)
 
 	return c
 }
 
 func (c *Core) SetLogger(lg *logrus.Logger) {
 	c.log = lg
+	//logrus.SetLevel(logrus.DebugLevel)
 	//logrus.SetLevel(logrus.Level(lv))
 }
 

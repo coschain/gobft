@@ -82,7 +82,7 @@ func (t *timeoutTicker) stopTimer() {
 		select {
 		case <-t.timer.C:
 		default:
-			t.core.log.Debug("Timer already stopped")
+			//t.core.log.Debug("Timer already stopped")
 		}
 	}
 }
