@@ -236,7 +236,9 @@ func (c *Core) handleMsg(mi msgInfo) {
 	// case *message.FetchVotesReq:
 
 	case *message.Commit:
+		c.log.Debug("handle Commit: ", msg)
 		if err := msg.ValidateBasic(); err != nil {
+			c.log.Error(err)
 			return
 		}
 		if msg.Height() == c.Height {
@@ -660,6 +662,7 @@ func (c *Core) doCommit(data message.ProposedData) {
 
 	appState := c.validators.CustomValidators.GetAppState()
 	c.updateToAppState(appState)
+	c.hasRecvCommitRecords = false
 
 	// c.StartTime is already set.
 	// Schedule Round0 to start soon.
@@ -721,7 +724,7 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 		// If this validator never committed before, it's almost certainly that
 		// it just started and fell far behind the rest. Let it collect votes
 		// from higher height so that it can catch up
-		if c.LastCommit == nil || vote.Height < c.Height+3 {
+		if c.LastCommit == nil || vote.Height < c.Height+128 {
 			if vote.Type != message.ProposalType {
 				c.stateSync.AddVote(vote)
 			}
