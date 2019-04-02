@@ -796,17 +796,9 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 			// Round-skip if there is any 2/3+ of votes ahead of us
 			c.enterNewRound(height, vote.Round)
 		} else if c.Round == vote.Round && RoundStepPrevote <= c.Step { // current round
-			polkaData, ok := prevotes.TwoThirdsMajority()
+			_, ok := prevotes.TwoThirdsMajority()
 			if ok {
-				// c.Proposal != nil means we got polka on it, cuz if we a polka on something else
-				// other than the Proposal, it'll be set to nil
-				// if we got polka on NilData, then Proposal will be set to nil cuz no one should
-				// propose NilData
-				if c.Proposal != nil || polkaData == message.NilData {
-					c.enterPrecommit(height, vote.Round)
-				} else {
-					c.log.Errorf("received polkaData %v, but we didn't get the right proposal. height: %d, round: %d", polkaData, c.Height, c.Round)
-				}
+				c.enterPrecommit(height, vote.Round)
 			} else if prevotes.HasTwoThirdsAny() {
 				c.enterPrevoteWait(height, vote.Round)
 			}

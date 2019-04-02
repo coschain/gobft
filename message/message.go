@@ -301,7 +301,13 @@ func (commit *Commit) ValidateBasic() error {
 }
 
 func (commit *Commit) String() string {
-	return "" // TODO:
+	return fmt.Sprintf("Commit{%v/%02d/%v %X @ %v}",
+		commit.ProposedData,
+		len(commit.Precommits),
+		commit.Address,
+		common.Fingerprint(commit.Signature),
+		commit.CommitTime,
+	)
 }
 
 type FetchVotesReq struct {
