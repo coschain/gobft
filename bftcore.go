@@ -584,13 +584,11 @@ func (c *Core) enterPrecommit(height int64, round int) {
 	}
 
 	// If we get here， it means:
-	// 1. our LockedProposal doesn't match the polka(this should never happen cuz once we got polka,
-	//    lock on different proposed data is released)
-	// 2. we have a polka on some proposed data that we don't have
+	// our LockedProposal doesn't match the polka(this should never happen cuz once we got polka,
+	// lock on different proposed data is released)
 	if c.LockedRound >= 0 && c.LockedProposal.Proposed != polkaData {
-		common.PanicSanity(fmt.Sprintf(
-			"[enterPrecommit] we are locked on %v but receive polka on %v",
-			c.LockedProposal.Proposed, polkaData))
+		c.log.Errorf("[enterPrecommit] we are locked on %v but receive polka on %v",
+			c.LockedProposal.Proposed, polkaData)
 	}
 
 	c.log.Warnf("Got a polkaData %v but we don't have its proposal", polkaData)
@@ -673,7 +671,7 @@ func (c *Core) doCommit(data message.ProposedData) {
 func (c *Core) tryAddVote(vote *message.Vote) (bool, error) {
 	added, err := c.addVote(vote)
 	if err != nil {
-		c.log.Error("---addVote ", err)
+		c.log.Warn("---addVote ", err)
 		// If the vote height is off, we'll just ignore it,
 		// But if it's a conflicting sig, add it to the c.evpool.
 		// If it's otherwise invalid, punish peer.
@@ -685,7 +683,7 @@ func (c *Core) tryAddVote(vote *message.Vote) (bool, error) {
 		} else {
 			// Probably an invalid signature / Bad peer.
 			// Seems this can also err sometimes with "Unexpected step" - perhaps not from a bad peer ?
-			c.log.Error("Error attempting to add vote", " err ", err)
+			c.log.Warn("Error attempting to add vote", " err ", err)
 			return added, ErrAddingVote
 		}
 	}
@@ -746,6 +744,7 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 		return
 	}
 
+	// TODO: add watermark for round
 	height := c.Height
 	added, err = c.Votes.AddVote(vote)
 	if !added {
@@ -765,13 +764,10 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 
 			// There was a polkaData!
 			// If we're locked but this is a recent polkaData, unlock.
-			// If it matches our ProposalBlock, update the ValidBlock
-
 			// Unlock if `c.LockedRound < vote.Round <= c.Round`
-			// NOTE: If vote.Round > c.Round, we'll deal with it when we get to vote.Round
 			if (c.LockedProposal != nil) &&
 				(c.LockedRound < vote.Round) &&
-				(vote.Round <= c.Round) &&
+				//(vote.Round <= c.Round) &&
 				c.LockedProposal.Proposed != polkaData {
 
 				c.log.Info("Unlocking because of POL.", " lockedRound ", c.LockedRound, " POLRound ", vote.Round)
@@ -787,6 +783,7 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 						"expect proposal:", c.Proposal.Proposed, " polkaData proposal ", polkaData)
 					// We're getting the wrong proposal.
 					c.Proposal = nil
+					// TODO: we might receive this proposal again from other validators
 				}
 			}
 		}
