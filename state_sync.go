@@ -42,6 +42,14 @@ func (s *StateSync) AddVote(v *message.Vote) {
 		if prevotes.HasTwoThirdsMajority() {
 			s.updateState(v.Height, v.Round, RoundStepNewHeight)
 			s.core.enterNewRound(v.Height, v.Round)
+			c := s.core
+			if (c.LockedProposal != nil) &&
+				(c.LockedRound < v.Round) {
+
+				c.log.Info("Unlocking because of POL.", " lockedRound ", c.LockedRound, " POLRound ", v.Round)
+				c.LockedRound = -1
+				c.LockedProposal = nil
+			}
 			s.core.enterPrecommit(v.Height, v.Round)
 		} else if prevotes.HasTwoThirdsAny() {
 			s.updateState(v.Height, v.Round, RoundStepNewHeight)
