@@ -20,7 +20,7 @@ type Core struct {
 
 	RoundState
 	stateSync                 *StateSync
-	triggeredTimeoutPrecommit bool
+	//triggeredTimeoutPrecommit bool
 	hasRecvCommitRecords      bool
 
 	msgQueue      chan msgInfo
@@ -328,7 +328,6 @@ func (c *Core) enterNewRound(height int64, round int) {
 		c.Proposal = nil
 	}
 	c.Votes.SetRound(round + 1) // also track next round (round+1) to allow round-skipping
-	c.triggeredTimeoutPrecommit = false
 
 	c.enterPropose(height, round)
 }
@@ -599,12 +598,12 @@ func (c *Core) enterPrecommit(height int64, round int) {
 }
 
 func (c *Core) enterPrecommitWait(height int64, round int) {
-	if c.Height != height || round < c.Round || (c.Round == round && c.triggeredTimeoutPrecommit) {
+	if c.Height != height || round < c.Round || (c.Round == round && RoundStepPrecommitWait <= c.Step) {
 		c.log.Debug(
 			fmt.Sprintf(
 				"enterPrecommitWait(%v/%v): Invalid args. "+
-					"Current state is Height/Round: %v/%v/, triggeredTimeoutPrecommit:%v",
-				height, round, c.Height, c.Round, c.triggeredTimeoutPrecommit))
+					"Current state is Height/Round/Step: %v/%v/%v",
+				height, round, c.Height, c.Round, c.Step))
 		return
 	}
 	if !c.Votes.Precommits(round).HasTwoThirdsAny() {
@@ -614,7 +613,7 @@ func (c *Core) enterPrecommitWait(height int64, round int) {
 
 	defer func() {
 		// Done enterPrecommitWait:
-		c.triggeredTimeoutPrecommit = true
+		c.updateRoundStep(round, RoundStepPrecommitWait)
 	}()
 
 	// Wait for some more precommits; enterNewRound
