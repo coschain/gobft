@@ -34,24 +34,26 @@ peer to prevent abuse.
 type HeightVoteSet struct {
 	height int64
 	valSet *Validators
+	base message.ProposedData
 
 	mtx           sync.Mutex
 	round         int                  // max tracked round
 	roundVoteSets map[int]RoundVoteSet // keys: [0...round]
 }
 
-func NewHeightVoteSet(height int64, valSet *Validators) *HeightVoteSet {
+func NewHeightVoteSet(height int64, valSet *Validators, b *message.ProposedData) *HeightVoteSet {
 	hvs := &HeightVoteSet{}
-	hvs.Reset(height, valSet)
+	hvs.Reset(height, valSet, b)
 	return hvs
 }
 
-func (hvs *HeightVoteSet) Reset(height int64, valSet *Validators) {
+func (hvs *HeightVoteSet) Reset(height int64, valSet *Validators, b *message.ProposedData) {
 	hvs.mtx.Lock()
 	defer hvs.mtx.Unlock()
 
 	hvs.height = height
 	hvs.valSet = valSet
+	hvs.base = *b
 	hvs.roundVoteSets = make(map[int]RoundVoteSet)
 
 	hvs.addRound(0)
@@ -91,8 +93,8 @@ func (hvs *HeightVoteSet) addRound(round int) {
 		common.PanicSanity("addRound() for an existing round")
 	}
 	// log.Debug("addRound(round)", "round", round)
-	prevotes := NewVoteSet(hvs.height, round, message.PrevoteType, hvs.valSet)
-	precommits := NewVoteSet(hvs.height, round, message.PrecommitType, hvs.valSet)
+	prevotes := NewVoteSet(hvs.height, round, message.PrevoteType, hvs.valSet, &hvs.base)
+	precommits := NewVoteSet(hvs.height, round, message.PrecommitType, hvs.valSet, &hvs.base)
 	hvs.roundVoteSets[round] = RoundVoteSet{
 		Prevotes:   prevotes,
 		Precommits: precommits,

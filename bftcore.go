@@ -19,9 +19,9 @@ type Core struct {
 	validators *Validators
 
 	RoundState
-	stateSync                 *StateSync
+	stateSync *StateSync
 	//triggeredTimeoutPrecommit bool
-	hasRecvCommitRecords      bool
+	hasRecvCommitRecords bool
 
 	msgQueue      chan msgInfo
 	timeoutTicker TimeoutTicker
@@ -157,9 +157,14 @@ func (c *Core) updateToAppState(appState *message.AppState) {
 	c.LockedRound = -1
 	c.LockedProposal = nil
 
-	c.Votes = NewHeightVoteSet(c.Height, c.validators)
 	c.CommitRound = -1
 	c.LastCommit = lastPrecommits
+	if c.LastCommit != nil {
+		if v, ok := c.LastCommit.TwoThirdsMajority(); ok {
+			c.lastCommittedData = v
+		}
+	}
+	c.Votes = NewHeightVoteSet(c.Height, c.validators, &c.lastCommittedData)
 }
 
 // receiveRoutine keeps the RoundState and is the only thing that updates it.
@@ -386,7 +391,7 @@ func (c *Core) enterPropose(height int64, round int) {
 
 func (c *Core) doPropose(height int64, round int) {
 	data := c.validators.CustomValidators.DecidesProposal()
-	proposal := message.NewVote(message.ProposalType, height, round, &data)
+	proposal := message.NewVote(message.ProposalType, height, round, &data, &c.lastCommittedData)
 
 	if c.LockedRound > -1 && c.LockedProposal != nil {
 		proposal.Proposed = c.LockedProposal.Proposed
@@ -475,20 +480,20 @@ func (c *Core) doPrevote(height int64, round int) {
 	var prevote *message.Vote
 
 	if c.byzantinePrevote != nil && *c.byzantinePrevote != message.NilData {
-		prevote = message.NewVote(message.PrevoteType, c.Height, c.Round, c.byzantinePrevote)
+		prevote = message.NewVote(message.PrevoteType, c.Height, c.Round, c.byzantinePrevote, &c.lastCommittedData)
 		c.signAddVote(prevote)
 		return
 	}
 
 	if c.LockedRound >= 0 && c.LockedProposal != nil {
 		c.log.Info("enterPrevote: vote for POLed proposal: ", c.LockedProposal.Proposed)
-		prevote = message.NewVote(message.PrevoteType, c.Height, c.Round, &c.LockedProposal.Proposed)
+		prevote = message.NewVote(message.PrevoteType, c.Height, c.Round, &c.LockedProposal.Proposed, &c.lastCommittedData)
 	} else if c.Proposal != nil &&
 		c.validators.CustomValidators.ValidateProposal(c.Proposal.Proposed) {
-		prevote = message.NewVote(message.PrevoteType, c.Height, c.Round, &c.Proposal.Proposed)
+		prevote = message.NewVote(message.PrevoteType, c.Height, c.Round, &c.Proposal.Proposed, &c.lastCommittedData)
 	} else {
 		c.log.Info("enterPrevote: vote for nil")
-		prevote = message.NewVote(message.PrevoteType, c.Height, c.Round, &message.NilData)
+		prevote = message.NewVote(message.PrevoteType, c.Height, c.Round, &message.NilData, &c.lastCommittedData)
 	}
 
 	c.signAddVote(prevote)
@@ -530,7 +535,7 @@ func (c *Core) enterPrecommit(height int64, round int) {
 	// check for a polkaData
 	polkaData, ok := c.Votes.Prevotes(round).TwoThirdsMajority()
 
-	precommit := message.NewVote(message.PrecommitType, height, round, &message.NilData)
+	precommit := message.NewVote(message.PrecommitType, height, round, &message.NilData, &c.lastCommittedData)
 	// If we don't have a polkaData, we must precommit nil.
 	if !ok {
 		if c.LockedProposal != nil {
@@ -670,7 +675,6 @@ func (c *Core) doCommit(data message.ProposedData) {
 func (c *Core) tryAddVote(vote *message.Vote) (bool, error) {
 	added, err := c.addVote(vote)
 	if err != nil {
-		c.log.Warn("---addVote ", err)
 		// If the vote height is off, we'll just ignore it,
 		// But if it's a conflicting sig, add it to the c.evpool.
 		// If it's otherwise invalid, punish peer.
@@ -717,6 +721,7 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 		return
 	}
 
+	/* height catch up is deprecated now
 	if vote.Height > c.Height {
 		// If this validator never committed before, it's almost certainly that
 		// it just started and fell far behind the rest. Let it collect votes
@@ -728,6 +733,7 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 			return
 		}
 	}
+	*/
 
 	if vote.Height != c.Height {
 		// Height mismatch is ignored.
@@ -841,7 +847,12 @@ func (c *Core) defaultSetProposal(proposal *message.Vote) error {
 
 	// Does not apply
 	if proposal.Height != c.Height || proposal.Round != c.Round {
-		c.log.Warn("mismatch ", proposal)
+		c.log.Warn("proposal height or round mismatch ", proposal)
+		return nil
+	}
+
+	if proposal.Prev != c.lastCommittedData {
+		c.log.Warn("proposal with invalid base", proposal)
 		return nil
 	}
 

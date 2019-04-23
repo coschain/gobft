@@ -94,6 +94,8 @@ type RoundState struct {
 	Votes          *HeightVoteSet
 	CommitRound    int
 	LastCommit     *VoteSet // Last precommits at Height-1
+
+	lastCommittedData message.ProposedData
 }
 
 // String returns a string

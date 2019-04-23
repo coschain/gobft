@@ -12,6 +12,7 @@ var (
 	ErrVoteInvalidBlockHash          = errors.New("Invalid block hash")
 	ErrVoteNonDeterministicSignature = errors.New("Non-deterministic signature")
 	ErrVoteNil                       = errors.New("Nil vote")
+	ErrVoteMismatchedBase			 = errors.New("Invalid base")
 )
 
 var (

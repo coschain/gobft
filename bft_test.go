@@ -184,6 +184,7 @@ func TestBFT(t *testing.T) {
 	}
 }
 
+/* this is deprecated
 func TestStateSync(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -297,3 +298,4 @@ func TestStateSync(t *testing.T) {
 		assert.Equal(commitHeight+1, len(committedStates[i]))
 	}
 }
+*/
