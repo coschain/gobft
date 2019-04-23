@@ -6,9 +6,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/pkg/errors"
 	"github.com/coschain/gobft/common"
 	"github.com/coschain/gobft/message"
-	"github.com/pkg/errors"
 )
 
 /*
@@ -26,6 +26,7 @@ type VoteSet struct {
 	round      int
 	type_      message.VoteType
 	validators *Validators
+	base       message.ProposedData
 
 	mtx                 sync.Mutex
 	sum                 int64
@@ -37,7 +38,7 @@ type VoteSet struct {
 }
 
 // Constructs a new VoteSet struct used to accumulate votes for given height/round.
-func NewVoteSet(height int64, round int, type_ message.VoteType, valSet *Validators) *VoteSet {
+func NewVoteSet(height int64, round int, type_ message.VoteType, valSet *Validators, b *message.ProposedData) *VoteSet {
 	if height == 0 {
 		common.PanicSanity("Cannot make VoteSet for height == 0, doesn't make sense.")
 	}
@@ -46,6 +47,7 @@ func NewVoteSet(height int64, round int, type_ message.VoteType, valSet *Validat
 		round:               round,
 		type_:               type_,
 		validators:          valSet,
+		base:                *b,
 		votesByProposedData: make(map[message.ProposedData]*proposedDataVotes),
 		conflictingVotes:    make(map[message.PubKey][]*message.Vote),
 	}
@@ -103,7 +105,9 @@ func (voteSet *VoteSet) addVote(vote *message.Vote) (added bool, err error) {
 	if vote == nil {
 		return false, ErrVoteNil
 	}
-	// TODO: check if vote address is a validator
+	if vote.Prev != voteSet.base {
+		return false, ErrVoteMismatchedBase
+	}
 
 	// Make sure the step matches.
 	if (vote.Height != voteSet.height) ||

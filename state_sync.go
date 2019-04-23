@@ -25,7 +25,7 @@ func (s *StateSync) AddVote(v *message.Vote) {
 
 	votesByHeight, ok := s.heightVotes[v.Height]
 	if !ok {
-		votesByHeight = NewHeightVoteSet(v.Height, s.core.validators)
+		votesByHeight = NewHeightVoteSet(v.Height, s.core.validators, &s.core.lastCommittedData)
 		s.heightVotes[v.Height] = votesByHeight
 	}
 

@@ -52,17 +52,19 @@ type Vote struct {
 	Round     int          `json:"round"`
 	Timestamp time.Time    `json:"timestamp"`
 	Proposed  ProposedData `json:"proposed_data"` // zero if vote is nil.
+	Prev      ProposedData `json:"prev"`
 	Address   PubKey       `json:"pub_key"`
 	Signature []byte       `json:"signature"`
 }
 
-func NewVote(t VoteType, height int64, round int, proposed *ProposedData) *Vote {
+func NewVote(t VoteType, height int64, round int, proposed *ProposedData, prev *ProposedData) *Vote {
 	return &Vote{
 		Type:      t,
 		Height:    height,
 		Round:     round,
 		Timestamp: common.Now(),
 		Proposed:  *proposed,
+		Prev:      *prev,
 	}
 }
 
@@ -89,6 +91,7 @@ func (v *Vote) Digest() []byte {
 	binary.Write(buf, binary.BigEndian, v.Round)
 	binary.Write(buf, binary.BigEndian, v.Timestamp)
 	binary.Write(buf, binary.BigEndian, v.Proposed)
+	binary.Write(buf, binary.BigEndian, v.Prev)
 	binary.Write(buf, binary.BigEndian, v.Address)
 	h := sha256.Sum256(buf.Bytes())
 	return h[:]
@@ -163,6 +166,7 @@ func (vote *Vote) Bytes() []byte {
 // Commit contains the evidence that a block was committed by a set of validators.
 type Commit struct {
 	ProposedData ProposedData `json:"proposed_data"`
+	Prev         ProposedData `json:"prev"`
 	Precommits   []*Vote      `json:"precommits"`
 	CommitTime   time.Time    `json:"committime"`
 	Address      PubKey       `json:"address"`
@@ -188,6 +192,7 @@ func (commit *Commit) GetSignature() []byte {
 func (commit *Commit) Digest() []byte {
 	h := sha256.New()
 	h.Write(commit.ProposedData[:])
+	h.Write(commit.Prev[:])
 	for i := range commit.Precommits {
 		h.Write(commit.Precommits[i].Bytes())
 	}
@@ -288,6 +293,9 @@ func (commit *Commit) ValidateBasic() error {
 			return fmt.Errorf("Invalid commit precommit round. Expected %v, got %v",
 				round, precommit.Round)
 		}
+		if precommit.Prev != commit.Prev {
+			return errors.New("Invalid Prev of precommit in Commit")
+		}
 	}
 
 	if commit.Address == "" {
@@ -301,8 +309,9 @@ func (commit *Commit) ValidateBasic() error {
 }
 
 func (commit *Commit) String() string {
-	return fmt.Sprintf("Commit{%v/%02d/%v %X @ %v}",
+	return fmt.Sprintf("Commit{%v/%v/%02d/%v %X @ %v}",
 		commit.ProposedData,
+		commit.Prev,
 		len(commit.Precommits),
 		commit.Address,
 		common.Fingerprint(commit.Signature),

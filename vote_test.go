@@ -4,10 +4,10 @@ import (
 	"crypto/sha256"
 	"testing"
 
-	"github.com/coschain/gobft/custom/mock"
-	"github.com/coschain/gobft/message"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"github.com/coschain/gobft/custom/mock"
+	"github.com/coschain/gobft/message"
 )
 
 func TestValidatorsVotes(t *testing.T) {
@@ -79,18 +79,19 @@ func TestValidatorsVotes(t *testing.T) {
 	assert.Equal(proposedData, valSet.DecidesProposal())
 
 	vs := NewValidators(valSet, privVal1)
-	hvSet1 := NewHeightVoteSet(1, vs)
+	var prevCommitted message.ProposedData
+	hvSet1 := NewHeightVoteSet(1, vs, &prevCommitted)
 
 	// sign votes
-	prevote1_1 := message.NewVote(message.PrevoteType, 1, 0, &proposedData)
+	prevote1_1 := message.NewVote(message.PrevoteType, 1, 0, &proposedData, &prevCommitted)
 	vs.Sign(prevote1_1)
-	prevote1_2 := message.NewVote(message.PrevoteType, 1, 0, &proposedData)
+	prevote1_2 := message.NewVote(message.PrevoteType, 1, 0, &proposedData, &prevCommitted)
 	prevote1_2.Address = pubkey2
 	prevote1_2.Signature = []byte(pubkey2)
-	prevote1_3 := message.NewVote(message.PrevoteType, 1, 0, &proposedData)
+	prevote1_3 := message.NewVote(message.PrevoteType, 1, 0, &proposedData, &prevCommitted)
 	prevote1_3.Address = pubkey3
 	prevote1_3.Signature = []byte(pubkey3)
-	prevote1_4 := message.NewVote(message.PrevoteType, 1, 0, &proposedData)
+	prevote1_4 := message.NewVote(message.PrevoteType, 1, 0, &proposedData, &prevCommitted)
 	prevote1_4.Address = pubkey4
 	prevote1_4.Signature = []byte(pubkey4)
 
