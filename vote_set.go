@@ -6,9 +6,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/pkg/errors"
 	"github.com/coschain/gobft/common"
 	"github.com/coschain/gobft/message"
+	"github.com/pkg/errors"
 )
 
 /*
@@ -303,9 +303,11 @@ func (voteSet *VoteSet) MakeCommit() *message.Commit {
 	if voteSet.maj23 == message.NilData {
 		common.PanicSanity("[MakeCommit] precommit doen't reach +2/3")
 	}
+	precommits := voteSet.votesByProposedData[voteSet.maj23].getAllVotes()
 	return &message.Commit{
 		ProposedData: voteSet.maj23,
-		Precommits:   voteSet.votesByProposedData[voteSet.maj23].getAllVotes(),
+		Precommits:   precommits,
+		Prev:         precommits[0].Prev,
 	}
 }
 
