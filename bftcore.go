@@ -43,7 +43,6 @@ func NewCore(vals custom.ICommittee, pVal custom.IPrivValidator) *Core {
 		msgQueue:   make(chan msgInfo, msgQueueSize),
 		started:    0,
 		//timeoutTicker: NewTimeoutTicker(),
-		done: make(chan struct{}),
 	}
 	//c.cfg.SkipTimeoutCommit = true
 	c.stateSync = NewStateSync(c)
@@ -64,10 +63,11 @@ func (c *Core) SetName(n string) {
 }
 
 func (c *Core) Start() error {
+	c.done = make(chan struct{})
+
 	if err := c.timeoutTicker.Start(); err != nil {
 		return err
 	}
-
 	appState := c.validators.CustomValidators.GetAppState()
 	c.updateToAppState(appState)
 
