@@ -159,11 +159,7 @@ func (c *Core) updateToAppState(appState *message.AppState) {
 
 	c.CommitRound = -1
 	c.LastCommit = lastPrecommits
-	if c.LastCommit != nil {
-		if v, ok := c.LastCommit.TwoThirdsMajority(); ok {
-			c.lastCommittedData = v
-		}
-	}
+	c.lastCommittedData = appState.LastProposedData
 	c.Votes = NewHeightVoteSet(c.Height, c.validators, &c.lastCommittedData)
 }
 
