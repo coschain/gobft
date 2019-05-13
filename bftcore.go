@@ -28,7 +28,7 @@ type Core struct {
 	started       int32
 	done          chan struct{}
 
-	log *logrus.Logger
+	log *logrus.Entry
 
 	sync.RWMutex
 
@@ -52,7 +52,7 @@ func NewCore(vals custom.ICommittee, pVal custom.IPrivValidator) *Core {
 }
 
 func (c *Core) SetLogger(lg *logrus.Logger) {
-	c.log = lg
+	c.log = lg.WithField("gobft", "on")
 	//logrus.SetLevel(logrus.DebugLevel)
 	//logrus.SetLevel(logrus.Level(lv))
 }
