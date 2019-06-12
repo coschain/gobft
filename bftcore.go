@@ -72,6 +72,7 @@ func (c *Core) Start() error {
 	c.updateToAppState(appState)
 
 	go c.receiveRoutine()
+	c.StartTime = time.Now().Add(time.Second)
 	c.scheduleRound0(c.GetRoundState())
 	atomic.StoreInt32(&c.started, 1)
 	return nil
