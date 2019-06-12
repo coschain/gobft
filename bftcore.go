@@ -42,11 +42,9 @@ func NewCore(vals custom.ICommittee, pVal custom.IPrivValidator) *Core {
 		validators: NewValidators(vals, pVal),
 		msgQueue:   make(chan msgInfo, msgQueueSize),
 		started:    0,
-		//timeoutTicker: NewTimeoutTicker(),
 	}
 	//c.cfg.SkipTimeoutCommit = true
 	c.stateSync = NewStateSync(c)
-	c.timeoutTicker = NewTimeoutTicker(c)
 
 	return c
 }
@@ -64,6 +62,7 @@ func (c *Core) SetName(n string) {
 
 func (c *Core) Start() error {
 	c.done = make(chan struct{})
+	c.timeoutTicker = NewTimeoutTicker(c)
 
 	if err := c.timeoutTicker.Start(); err != nil {
 		return err
@@ -79,6 +78,7 @@ func (c *Core) Start() error {
 }
 
 func (c *Core) Stop() error {
+	c.timeoutTicker.Stop()
 	close(c.done)
 	return nil
 }
