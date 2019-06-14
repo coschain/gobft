@@ -68,6 +68,7 @@ func (c *Core) Start() error {
 		return err
 	}
 	appState := c.validators.CustomValidators.GetAppState()
+	c.Votes = nil
 	c.updateToAppState(appState)
 
 	go c.receiveRoutine()
@@ -696,8 +697,8 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 	// A precommit for the previous height?
 	// These come in while we wait timeoutCommit
 	if vote.Height+1 == c.Height {
-		if !(c.Step == RoundStepNewHeight && vote.Type == message.PrecommitType) {
-			// TODO: give the reason ..
+		if !(c.Step == RoundStepNewHeight && vote.Type == message.PrecommitType) ||
+			c.LastCommit == nil {
 			// fmt.Errorf("tryAddVote: Wrong height, not a LastCommit straggler commit.")
 			return added, ErrVoteHeightMismatch
 		}
