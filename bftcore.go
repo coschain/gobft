@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/coschain/gobft/common"
-	"github.com/coschain/gobft/custom"
-	"github.com/coschain/gobft/message"
+	"github.com/zhaoguojie2010/gobft/common"
+	"github.com/zhaoguojie2010/gobft/custom"
+	"github.com/zhaoguojie2010/gobft/message"
 )
 
 type Core struct {
@@ -27,7 +27,9 @@ type Core struct {
 	timeoutTicker TimeoutTicker
 	started       int32
 	done          chan struct{}
+	inFetch       bool
 
+	extLog *logrus.Logger
 	log *logrus.Entry
 
 	sync.RWMutex
@@ -50,6 +52,7 @@ func NewCore(vals custom.ICommittee, pVal custom.IPrivValidator) *Core {
 }
 
 func (c *Core) SetLogger(lg *logrus.Logger) {
+	c.extLog = lg
 	c.log = lg.WithField("gobft", "on")
 	//logrus.SetLevel(logrus.DebugLevel)
 	//logrus.SetLevel(logrus.Level(lv))
@@ -57,7 +60,10 @@ func (c *Core) SetLogger(lg *logrus.Logger) {
 
 func (c *Core) SetName(n string) {
 	c.name = n
-	c.log.WithField("CoreName", c.name)
+	c.log = c.extLog.WithFields(logrus.Fields{
+		"gobft": "on",
+		"CoreName": n,
+	})
 }
 
 func (c *Core) Start() error {
@@ -121,6 +127,7 @@ func (c *Core) scheduleRound0(rs *RoundState) {
 func (c *Core) updateRoundStep(round int, step RoundStepType) {
 	c.Round = round
 	c.Step = step
+	c.inFetch = false
 }
 
 func (c *Core) updateToAppState(appState *message.AppState) {
@@ -252,11 +259,65 @@ func (c *Core) handleMsg(mi msgInfo) {
 				c.tryAddVote(msg.Precommits[i])
 			}
 		}
+
+	case *message.FetchVotesReq:
+		c.handleFetch(msg)
+	case *message.FetchVotesRsp:
+		c.handleFetchRsp(msg)
 	default:
 		c.log.Error("Unknown msg type ", reflect.TypeOf(msg))
 	}
 	if err != nil {
 		c.log.Error("Error with msg ", " height ", c.Height, " round ", c.Round, " type ", reflect.TypeOf(msg), " err ", err, " msg ", msg)
+	}
+}
+
+func (c *Core) handleFetch(msg *message.FetchVotesReq) {
+	if !c.inFetch {
+		return
+	}
+	c.log.Debug("handle FetchVotesReq: ", msg)
+	if err := msg.ValidateBasic(); err != nil {
+		c.log.Error(err)
+		return
+	}
+
+	var rsp *message.FetchVotesRsp
+	if msg.Height < c.Height {
+		commit := c.validators.CustomValidators.GetCommitHistory(msg.Height)
+		if commit == nil {
+			c.log.Error("failed to get history commits")
+			return
+		}
+		rsp = &message.FetchVotesRsp{
+			Type:         message.PrecommitType,
+			Height:       msg.Height,
+			Round:        msg.Round,
+			MissingVotes: commit.Precommits,
+		}
+
+	} else if msg.Height == c.Height && msg.Round <= c.Round {
+		if msg.Type == message.PrevoteType {
+			rsp = c.Votes.Prevotes(msg.Round).MakeFetchVotesRsp(msg)
+		} else if msg.Type == message.PrecommitType {
+			rsp = c.Votes.Precommits(msg.Round).MakeFetchVotesRsp(msg)
+		}
+	}
+	if rsp != nil {
+		c.validators.Sign(rsp)
+		c.validators.CustomValidators.BroadCast(rsp) // TODO: send to request peer
+	}
+}
+
+func (c *Core) handleFetchRsp(msg *message.FetchVotesRsp) {
+	if err := msg.ValidateBasic(); err != nil {
+		c.log.Error(err)
+		return
+	}
+	if msg.Height == c.Height {
+		for i := range msg.MissingVotes {
+			c.tryAddVote(msg.MissingVotes[i])
+		}
 	}
 }
 
@@ -412,9 +473,11 @@ func (c *Core) fetchMissingVotes() {
 		return
 	}
 	c.validators.Sign(fvr)
-	c.validators.CustomValidators.BroadCast(fvr)
+	c.log.Debugf("fetchMissingVotes at height %d round %d", c.Height, c.Round)
+	c.validators.CustomValidators.BroadCast(fvr) // TODO: send to one neighbour peer in random
 
 	c.scheduleTimeout(FetchInterval, c.Height, c.Round, step)
+	c.inFetch = true
 }
 
 func (c *Core) enterPrevote(height int64, round int) {
@@ -429,18 +492,19 @@ func (c *Core) enterPrevote(height int64, round int) {
 	c.doPrevote(height, round)
 	c.updateRoundStep(round, RoundStepPrevote)
 
-	// c.enterPrevoteFetch(height, round)
+	c.enterPrevoteFetch(height, round)
 	// Once `addVote` hits any +2/3 prevotes, we will go to PrevoteWait
-	// (so we have more time to try and collect +2/3 prevotes for a single block)
 }
 
 // it calls fetchMissingVotes every sec unless any +2/3 prevotes received
 func (c *Core) enterPrevoteFetch(height int64, round int) {
+	c.log.Info(fmt.Sprintf("enterPrevoteFetch(%v/%v). Current: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
 	c.updateRoundStep(round, RoundStepPrevoteFetch)
 	c.scheduleTimeout(FetchInterval, height, round, RoundStepPrevoteFetch)
 }
 
 func (c *Core) enterPrecommitFetch(height int64, round int) {
+	c.log.Info(fmt.Sprintf("enterPrecommitFetch(%v/%v). Current: %v/%v/%v", height, round, c.Height, c.Round, c.Step))
 	c.updateRoundStep(round, RoundStepPrecommitFetch)
 	c.scheduleTimeout(FetchInterval, height, round, RoundStepPrecommitFetch)
 }
@@ -527,7 +591,7 @@ func (c *Core) enterPrecommit(height int64, round int) {
 	defer func() {
 		// Done enterPrecommit:
 		c.updateRoundStep(round, RoundStepPrecommit)
-		//c.enterPrecommitFetch(c.Height, c.Round)
+		c.enterPrecommitFetch(c.Height, c.Round)
 	}()
 
 	// check for a polkaData

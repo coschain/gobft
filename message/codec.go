@@ -3,7 +3,7 @@ package message
 import (
 	"fmt"
 
-	"github.com/coschain/gobft/common"
+	"github.com/zhaoguojie2010/gobft/common"
 	"github.com/tendermint/go-amino"
 )
 
@@ -32,6 +32,7 @@ func RegisterConsensusMessages(cdc *amino.Codec) {
 	cdc.RegisterConcrete(&Vote{}, "gobft/Vote", nil)
 	cdc.RegisterConcrete(&Commit{}, "gobft/Commit", nil)
 	cdc.RegisterConcrete(&FetchVotesReq{}, "gobft/FetchVotesReq", nil)
+	cdc.RegisterConcrete(&FetchVotesRsp{}, "gobft/FetchVotesRsp", nil)
 }
 
 func DecodeConsensusMsg(bz []byte) (msg ConsensusMessage, err error) {

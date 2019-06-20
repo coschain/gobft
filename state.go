@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/coschain/gobft/message"
+	"github.com/zhaoguojie2010/gobft/message"
 )
 
 // RoundStepType enumerates the state of the consensus state machine

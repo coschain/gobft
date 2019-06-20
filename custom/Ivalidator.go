@@ -1,7 +1,7 @@
 package custom
 
 import (
-	"github.com/coschain/gobft/message"
+	"github.com/zhaoguojie2010/gobft/message"
 )
 
 /*
@@ -20,6 +20,7 @@ import (
 // it to the bft core before starting a new height consensus process if
 // validators need to be updated
 type ICommittee interface {
+	GetValidatorList() []message.PubKey
 	GetValidator(key message.PubKey) IPubValidator
 	IsValidator(key message.PubKey) bool
 	TotalVotingPower() int64
@@ -38,8 +39,14 @@ type ICommittee interface {
 	Commit(commitRecords *message.Commit) error
 
 	GetAppState() *message.AppState
+
 	// BroadCast sends msg to other validators
 	BroadCast(msg message.ConsensusMessage) error
+
+	// Send randomly chooses one of the validators and sends msg to it
+	//Send(msg message.ConsensusMessage) error
+
+	GetCommitHistory(height int64) *message.Commit
 }
 
 // IPubValidator verifies if a message is properly signed by the right validator

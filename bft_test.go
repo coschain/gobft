@@ -2,13 +2,13 @@ package gobft
 
 import (
 	"crypto/sha256"
-	"github.com/coschain/gobft/custom"
+	"github.com/zhaoguojie2010/gobft/custom"
 	"github.com/sirupsen/logrus"
 	"strconv"
 	"testing"
 
-	"github.com/coschain/gobft/custom/mock"
-	"github.com/coschain/gobft/message"
+	"github.com/zhaoguojie2010/gobft/custom/mock"
+	"github.com/zhaoguojie2010/gobft/message"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
@@ -87,6 +87,11 @@ func initCommittee(ctrl *gomock.Controller, byzantineIndex int, initState *messa
 			ret := committedStates[i][len(committedStates[i])-1]
 			return ret
 		}).AnyTimes()
+
+		committees[i].EXPECT().GetValidatorList().Return(pubKeys[:]).AnyTimes()
+		committees[i].EXPECT().GetCommitHistory(gomock.Any()).DoAndReturn(func(height int64) *message.Commit {
+			return nil
+		})
 	}
 }
 
