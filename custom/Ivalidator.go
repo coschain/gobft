@@ -16,9 +16,7 @@ import (
  */
 
 // ICommittee represents a validator group which contains all validators at
-// a certain height. User should typically create a new ICommittee and register
-// it to the bft core before starting a new height consensus process if
-// validators need to be updated
+// a certain height. 
 type ICommittee interface {
 	GetValidatorList() []message.PubKey
 	GetValidator(key message.PubKey) IPubValidator
