@@ -2,6 +2,7 @@ package gobft
 
 import (
 	"fmt"
+	"github.com/zhaoguojie2010/gobft/custom"
 	"time"
 
 	"github.com/zhaoguojie2010/gobft/message"
@@ -33,8 +34,8 @@ const (
 
 // msgs from the reactor which may update the state
 type msgInfo struct {
-	Msg message.ConsensusMessage `json:"msg"`
-	//PeerID p2p.ID                  `json:"peer_key"`
+	Msg  message.ConsensusMessage
+	Peer custom.IPeer
 }
 
 // internally generated messages which may update the state

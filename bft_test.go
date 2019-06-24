@@ -164,7 +164,7 @@ func TestBFT(t *testing.T) {
 			assert.Equal(err, nil)
 			for j := 0; j < nodeNum; j++ {
 				if ii != j {
-					cores[j].RecvMsg(ori)
+					cores[j].RecvMsg(ori, nil)
 				}
 			}
 			return nil

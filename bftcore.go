@@ -106,13 +106,13 @@ func (c *Core) GetLastCommit() *message.Commit {
 }
 
 // RecvMsg accepts a ConsensusMessage and delivers it to receiveRoutine
-func (c *Core) RecvMsg(msg message.ConsensusMessage) {
+func (c *Core) RecvMsg(msg message.ConsensusMessage, p custom.IPeer) {
 	if err := msg.ValidateBasic(); err != nil {
 		c.log.Error(err)
 		return
 	}
 	if atomic.LoadInt32(&c.started) == 1 {
-		c.sendInternalMessage(msgInfo{msg})
+		c.sendInternalMessage(msgInfo{msg, p})
 	}
 
 }
@@ -261,9 +261,9 @@ func (c *Core) handleMsg(mi msgInfo) {
 		}
 
 	case *message.FetchVotesReq:
-		c.handleFetch(msg)
+		c.handleFetch(msg, mi.Peer)
 	case *message.FetchVotesRsp:
-		c.handleFetchRsp(msg)
+		c.handleFetchRsp(msg, mi.Peer)
 	default:
 		c.log.Error("Unknown msg type ", reflect.TypeOf(msg))
 	}
@@ -272,7 +272,7 @@ func (c *Core) handleMsg(mi msgInfo) {
 	}
 }
 
-func (c *Core) handleFetch(msg *message.FetchVotesReq) {
+func (c *Core) handleFetch(msg *message.FetchVotesReq, p custom.IPeer) {
 	if !c.inFetch {
 		return
 	}
@@ -305,11 +305,11 @@ func (c *Core) handleFetch(msg *message.FetchVotesReq) {
 	}
 	if rsp != nil {
 		c.validators.Sign(rsp)
-		c.validators.CustomValidators.BroadCast(rsp) // TODO: send to request peer
+		c.validators.CustomValidators.Send(rsp, p)
 	}
 }
 
-func (c *Core) handleFetchRsp(msg *message.FetchVotesRsp) {
+func (c *Core) handleFetchRsp(msg *message.FetchVotesRsp, p custom.IPeer) {
 	if err := msg.ValidateBasic(); err != nil {
 		c.log.Error(err)
 		return
@@ -474,7 +474,8 @@ func (c *Core) fetchMissingVotes() {
 	}
 	c.validators.Sign(fvr)
 	c.log.Debugf("fetchMissingVotes at height %d round %d", c.Height, c.Round)
-	c.validators.CustomValidators.BroadCast(fvr) // TODO: send to one neighbour peer in random
+	// randomly send the request to one neighbour
+	c.validators.CustomValidators.Send(fvr, nil)
 
 	c.scheduleTimeout(FetchInterval, c.Height, c.Round, step)
 	c.inFetch = true
@@ -516,7 +517,7 @@ func (c *Core) signAddVote(vote *message.Vote) {
 		return
 	}
 	c.validators.Sign(vote)
-	c.sendInternalMessage(msgInfo{vote})
+	c.sendInternalMessage(msgInfo{vote, nil})
 	c.validators.CustomValidators.BroadCast(vote)
 }
 
