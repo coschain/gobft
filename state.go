@@ -66,10 +66,14 @@ func (rs RoundStepType) String() string {
 		return "RoundStepPropose"
 	case RoundStepPrevote:
 		return "RoundStepPrevote"
+	case RoundStepPrevoteFetch:
+		return "RoundStepPrevoteFetch"
 	case RoundStepPrevoteWait:
 		return "RoundStepPrevoteWait"
 	case RoundStepPrecommit:
 		return "RoundStepPrecommit"
+	case RoundStepPrecommitFetch:
+		return "RoundStepPrecommitFetch"
 	case RoundStepPrecommitWait:
 		return "RoundStepPrecommitWait"
 	case RoundStepCommit:

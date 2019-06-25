@@ -54,7 +54,8 @@ func NewCore(vals custom.ICommittee, pVal custom.IPrivValidator) *Core {
 func (c *Core) SetLogger(lg *logrus.Logger) {
 	c.extLog = lg
 	c.log = lg.WithField("gobft", "on")
-	//logrus.SetLevel(logrus.DebugLevel)
+	//lg.SetLevel(logrus.DebugLevel)
+
 	//logrus.SetLevel(logrus.Level(lv))
 }
 
@@ -119,7 +120,8 @@ func (c *Core) RecvMsg(msg message.ConsensusMessage, p custom.IPeer) {
 
 // enterNewRound(height, 0) at c.StartTime.
 func (c *Core) scheduleRound0(rs *RoundState) {
-	c.log.Info("scheduleRound0", " now ", common.Now(), " startTime ", c.StartTime)
+	c.log.Info("scheduleRound0", " now ", common.Now(), " startTime ", c.StartTime,
+		" (", rs.Height, "/", 0, "/", RoundStepNewHeight, ")")
 	sleepDuration := rs.StartTime.Sub(common.Now()) // nolint: gotype, gosimple
 	c.scheduleTimeout(sleepDuration, rs.Height, 0, RoundStepNewHeight)
 }
@@ -246,7 +248,7 @@ func (c *Core) handleMsg(mi msgInfo) {
 	// case *message.FetchVotesReq:
 
 	case *message.Commit:
-		c.log.Debug("handle Commit: ", msg)
+		//c.log.Debug("handle Commit: ", msg)
 		if err := msg.ValidateBasic(); err != nil {
 			c.log.Error(err)
 			return
@@ -305,7 +307,7 @@ func (c *Core) handleFetch(msg *message.FetchVotesReq, p custom.IPeer) {
 	}
 	if rsp != nil {
 		c.validators.Sign(rsp)
-		c.validators.CustomValidators.Send(rsp, p)
+		//c.validators.CustomValidators.Send(rsp, p)
 	}
 }
 
@@ -475,7 +477,7 @@ func (c *Core) fetchMissingVotes() {
 	c.validators.Sign(fvr)
 	c.log.Debugf("fetchMissingVotes at height %d round %d", c.Height, c.Round)
 	// randomly send the request to one neighbour
-	c.validators.CustomValidators.Send(fvr, nil)
+	//c.validators.CustomValidators.Send(fvr, nil)
 
 	c.scheduleTimeout(FetchInterval, c.Height, c.Round, step)
 	c.inFetch = true
@@ -946,5 +948,6 @@ func (c *Core) defaultSetProposal(proposal *message.Vote) error {
 
 // Attempt to schedule a timeout (by sending timeoutInfo on the tickChan)
 func (c *Core) scheduleTimeout(duration time.Duration, height int64, round int, step RoundStepType) {
+	c.log.Debugf("++++++scheduleTimeout (%v/%d/%d/%v)", duration, height, round, step)
 	c.timeoutTicker.ScheduleTimeout(timeoutInfo{duration, height, round, step})
 }

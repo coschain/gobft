@@ -141,9 +141,10 @@ func TestBFT(t *testing.T) {
 				LastProposedData: records.ProposedData,
 			}
 			committedStates[ii] = append(committedStates[ii], s)
-			logrus.Infof("core %d committed %v at height %d", ii, records.ProposedData, s.LastHeight)
+			cores[ii].log.Infof("core %d committed %v at height %d", ii, records.ProposedData, s.LastHeight)
 			commitTimes[ii]++
 			if commitTimes[ii] == commitHeight {
+				cores[ii].Stop()
 				close(stopCh[ii])
 			}
 
