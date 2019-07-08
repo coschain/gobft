@@ -6,8 +6,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/coschain/gobft/common"
-	"github.com/coschain/gobft/message"
+	"github.com/zhaoguojie2010/gobft/common"
+	"github.com/zhaoguojie2010/gobft/message"
 )
 
 type RoundVoteSet struct {

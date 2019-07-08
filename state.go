@@ -2,9 +2,10 @@ package gobft
 
 import (
 	"fmt"
+	"github.com/zhaoguojie2010/gobft/custom"
 	"time"
 
-	"github.com/coschain/gobft/message"
+	"github.com/zhaoguojie2010/gobft/message"
 )
 
 // RoundStepType enumerates the state of the consensus state machine
@@ -33,8 +34,8 @@ const (
 
 // msgs from the reactor which may update the state
 type msgInfo struct {
-	Msg message.ConsensusMessage `json:"msg"`
-	//PeerID p2p.ID                  `json:"peer_key"`
+	Msg  message.ConsensusMessage
+	Peer custom.IPeer
 }
 
 // internally generated messages which may update the state
@@ -65,10 +66,14 @@ func (rs RoundStepType) String() string {
 		return "RoundStepPropose"
 	case RoundStepPrevote:
 		return "RoundStepPrevote"
+	case RoundStepPrevoteFetch:
+		return "RoundStepPrevoteFetch"
 	case RoundStepPrevoteWait:
 		return "RoundStepPrevoteWait"
 	case RoundStepPrecommit:
 		return "RoundStepPrecommit"
+	case RoundStepPrecommitFetch:
+		return "RoundStepPrecommitFetch"
 	case RoundStepPrecommitWait:
 		return "RoundStepPrecommitWait"
 	case RoundStepCommit:

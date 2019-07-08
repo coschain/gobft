@@ -1,8 +1,10 @@
 package custom
 
 import (
-	"github.com/coschain/gobft/message"
+	"github.com/zhaoguojie2010/gobft/message"
 )
+
+// ~/go/bin/mockgen -source=custom/Ivalidator.go -package=mock -destination=custom/mock/mock_validators.go
 
 /*
  * A validator is a node in a distributed system that participates in the
@@ -16,10 +18,10 @@ import (
  */
 
 // ICommittee represents a validator group which contains all validators at
-// a certain height. User should typically create a new ICommittee and register
-// it to the bft core before starting a new height consensus process if
-// validators need to be updated
+// a certain height.
 type ICommittee interface {
+	IP2P
+	GetValidatorList() []message.PubKey
 	GetValidator(key message.PubKey) IPubValidator
 	IsValidator(key message.PubKey) bool
 	TotalVotingPower() int64
@@ -38,8 +40,8 @@ type ICommittee interface {
 	Commit(commitRecords *message.Commit) error
 
 	GetAppState() *message.AppState
-	// BroadCast sends msg to other validators
-	BroadCast(msg message.ConsensusMessage) error
+
+	GetCommitHistory(height int64) *message.Commit
 }
 
 // IPubValidator verifies if a message is properly signed by the right validator
@@ -54,4 +56,15 @@ type IPubValidator interface {
 type IPrivValidator interface {
 	GetPubKey() message.PubKey
 	Sign(digest []byte) []byte
+}
+
+type IP2P interface {
+	// BroadCast sends msg to other validators
+	BroadCast(msg message.ConsensusMessage) error
+	Send(msg message.ConsensusMessage, p IPeer) error
+}
+
+type IPeer interface {
+	IPv4() string
+	Port() uint16
 }

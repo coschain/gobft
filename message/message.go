@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/coschain/gobft/common"
+	"github.com/zhaoguojie2010/gobft/common"
 )
 
 // PubKey is string representation of the public key
@@ -373,7 +373,7 @@ func (fvr *FetchVotesReq) ValidateBasic() error {
 		return errors.New("Invoker is empty")
 	}
 
-	if len(fvr.Voters) > 21 {
+	if len(fvr.Voters) > common.ValNum {
 		return errors.New("Voters list too long")
 	}
 
@@ -384,5 +384,85 @@ func (fvr *FetchVotesReq) ValidateBasic() error {
 }
 
 func (fvr *FetchVotesReq) String() string {
-	return "" // TODO:
+	return fmt.Sprintf("FetchVotesReq{%v/%d/%02d/%v %d @ %v}",
+		fvr.Type,
+		fvr.Height,
+		fvr.Round,
+		fvr.Invoker,
+		len(fvr.Voters),
+		common.Fingerprint(fvr.Signature),
+	)
+}
+
+type FetchVotesRsp struct {
+	Type         VoteType `json:"type"`
+	Height       int64    `json:"height"`
+	Round        int      `json:"round"`
+	Responser    PubKey   `json:"responser"`
+	MissingVotes []*Vote  `json:"missing_votes"`
+	Signature    []byte   `json:"signature"`
+}
+
+func (fvr *FetchVotesRsp) SetSigner(key PubKey) {
+	fvr.Responser = key
+}
+
+func (fvr *FetchVotesRsp) GetSigner() PubKey {
+	return fvr.Responser
+}
+
+func (fvr *FetchVotesRsp) SetSignature(sig []byte) {
+	fvr.Signature = sig
+}
+
+func (fvr *FetchVotesRsp) GetSignature() []byte {
+	return fvr.Signature
+}
+
+func (fvr *FetchVotesRsp) Digest() []byte {
+	buf := &bytes.Buffer{}
+	binary.Write(buf, binary.BigEndian, fvr.Type)
+	binary.Write(buf, binary.BigEndian, fvr.Height)
+	binary.Write(buf, binary.BigEndian, fvr.Round)
+	binary.Write(buf, binary.BigEndian, fvr.Responser)
+	for i := range fvr.MissingVotes {
+		binary.Write(buf, binary.BigEndian, fvr.MissingVotes[i].Digest())
+	}
+	h := sha256.Sum256(buf.Bytes())
+	return h[:]
+}
+
+func (fvr *FetchVotesRsp) Bytes() []byte {
+	return cdcEncode(fvr)
+}
+
+// ValidateBasic performs basic validation that doesn't involve state data.
+// Does not actually check the cryptographic signatures.
+func (fvr *FetchVotesRsp) ValidateBasic() error {
+	if fvr.Type != PrevoteType && fvr.Type != PrecommitType {
+		return errors.New("Invalid type")
+	}
+	if fvr.Responser == "" {
+		return errors.New("Responser is empty")
+	}
+
+	if len(fvr.MissingVotes) > common.ValNum {
+		return errors.New("Voters list too long")
+	}
+
+	if len(fvr.Signature) == 0 {
+		return errors.New("Missing signature")
+	}
+	return nil
+}
+
+func (fvr *FetchVotesRsp) String() string {
+	return fmt.Sprintf("FetchVotesRsp{%v/%d/%02d/%v %d @ %v}",
+		fvr.Type,
+		fvr.Height,
+		fvr.Round,
+		fvr.Responser,
+		len(fvr.MissingVotes),
+		common.Fingerprint(fvr.Signature),
+	)
 }

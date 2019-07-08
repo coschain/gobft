@@ -6,8 +6,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/coschain/gobft/common"
-	"github.com/coschain/gobft/message"
+	"github.com/zhaoguojie2010/gobft/common"
+	"github.com/zhaoguojie2010/gobft/message"
 	"github.com/pkg/errors"
 )
 
@@ -269,7 +269,7 @@ func (voteSet *VoteSet) StringIndented(indent string) string {
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
 
-	voteStrings := make([]string, 0, 21 /*TODO: config*/)
+	voteStrings := make([]string, 0, common.ValNum)
 	for _, proposedVotes := range voteSet.votesByProposedData {
 		for _, vote := range proposedVotes.votes {
 			if vote == nil {
@@ -312,7 +312,7 @@ func (voteSet *VoteSet) MakeCommit() *message.Commit {
 }
 
 func (voteSet *VoteSet) MakeFetchVotesReq() *message.FetchVotesReq {
-	voters := make([]message.PubKey, 0, 21)
+	voters := make([]message.PubKey, 0, common.ValNum)
 	for _, pd := range voteSet.votesByProposedData {
 		for pk := range pd.votes {
 			voters = append(voters, pk)
@@ -323,6 +323,29 @@ func (voteSet *VoteSet) MakeFetchVotesReq() *message.FetchVotesReq {
 		Height: voteSet.height,
 		Round:  voteSet.round,
 		Voters: voters,
+	}
+}
+
+func (voteSet *VoteSet) MakeFetchVotesRsp(req *message.FetchVotesReq) *message.FetchVotesRsp {
+	votes := make([]*message.Vote, 0, common.ValNum)
+	cache := make(map[message.PubKey]bool)
+	for i := range req.Voters {
+		cache[req.Voters[i]] = true
+	}
+
+	for _, pd := range voteSet.votesByProposedData {
+		for pk := range pd.votes {
+			if _, exist := cache[pk]; !exist {
+				votes = append(votes, pd.votes[pk])
+			}
+		}
+	}
+
+	return &message.FetchVotesRsp{
+		Type: voteSet.type_,
+		Height: voteSet.height,
+		Round: voteSet.round,
+		MissingVotes: votes,
 	}
 }
 
