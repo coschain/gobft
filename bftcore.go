@@ -30,7 +30,7 @@ type Core struct {
 	inFetch       bool
 
 	extLog *logrus.Logger
-	log *logrus.Entry
+	log    *logrus.Entry
 
 	sync.RWMutex
 
@@ -62,7 +62,7 @@ func (c *Core) SetLogger(lg *logrus.Logger) {
 func (c *Core) SetName(n string) {
 	c.name = n
 	c.log = c.extLog.WithFields(logrus.Fields{
-		"gobft": "on",
+		"gobft":    "on",
 		"CoreName": n,
 	})
 }
@@ -307,16 +307,19 @@ func (c *Core) handleFetch(msg *message.FetchVotesReq, p custom.IPeer) {
 	}
 	if rsp != nil {
 		c.validators.Sign(rsp)
-		//c.validators.CustomValidators.Send(rsp, p)
+		c.validators.CustomValidators.Send(rsp, p)
 	}
 }
 
 func (c *Core) handleFetchRsp(msg *message.FetchVotesRsp, p custom.IPeer) {
-	if err := msg.ValidateBasic(); err != nil {
-		c.log.Error(err)
-		return
-	}
-	if msg.Height == c.Height {
+	if c.Height == msg.Height && c.Round <= msg.Round {
+		if c.Step != RoundStepPrevoteFetch && c.Step != RoundStepPrecommitFetch {
+			return
+		}
+		if err := msg.ValidateBasic(); err != nil {
+			c.log.Error(err)
+			return
+		}
 		for i := range msg.MissingVotes {
 			c.tryAddVote(msg.MissingVotes[i])
 		}
@@ -477,7 +480,7 @@ func (c *Core) fetchMissingVotes() {
 	c.validators.Sign(fvr)
 	c.log.Debugf("fetchMissingVotes at height %d round %d", c.Height, c.Round)
 	// randomly send the request to one neighbour
-	//c.validators.CustomValidators.Send(fvr, nil)
+	c.validators.CustomValidators.Send(fvr, nil)
 
 	c.scheduleTimeout(FetchInterval, c.Height, c.Round, step)
 	c.inFetch = true
