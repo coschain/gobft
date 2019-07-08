@@ -3,7 +3,7 @@ package message
 import (
 	"fmt"
 
-	"github.com/zhaoguojie2010/gobft/common"
+	"github.com/coschain/gobft/common"
 	"github.com/tendermint/go-amino"
 )
 

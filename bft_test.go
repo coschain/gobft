@@ -2,13 +2,13 @@ package gobft
 
 import (
 	"crypto/sha256"
-	"github.com/zhaoguojie2010/gobft/custom"
+	"github.com/coschain/gobft/custom"
 	"github.com/sirupsen/logrus"
 	"strconv"
 	"testing"
 
-	"github.com/zhaoguojie2010/gobft/custom/mock"
-	"github.com/zhaoguojie2010/gobft/message"
+	"github.com/coschain/gobft/custom/mock"
+	"github.com/coschain/gobft/message"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )

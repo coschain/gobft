@@ -6,8 +6,8 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-	"github.com/zhaoguojie2010/gobft/custom/mock"
-	"github.com/zhaoguojie2010/gobft/message"
+	"github.com/coschain/gobft/custom/mock"
+	"github.com/coschain/gobft/message"
 )
 
 func TestValidatorsVotes(t *testing.T) {

@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/zhaoguojie2010/gobft/common"
-	"github.com/zhaoguojie2010/gobft/custom"
-	"github.com/zhaoguojie2010/gobft/message"
+	"github.com/coschain/gobft/common"
+	"github.com/coschain/gobft/custom"
+	"github.com/coschain/gobft/message"
 )
 
 type Core struct {

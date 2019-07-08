@@ -3,8 +3,8 @@ package gobft
 import (
 	"sync"
 
-	"github.com/zhaoguojie2010/gobft/custom"
-	"github.com/zhaoguojie2010/gobft/message"
+	"github.com/coschain/gobft/custom"
+	"github.com/coschain/gobft/message"
 	log "github.com/sirupsen/logrus"
 )
 

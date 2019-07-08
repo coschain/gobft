@@ -1,7 +1,7 @@
 package custom
 
 import (
-	"github.com/zhaoguojie2010/gobft/message"
+	"github.com/coschain/gobft/message"
 )
 
 // ~/go/bin/mockgen -source=custom/Ivalidator.go -package=mock -destination=custom/mock/mock_validators.go

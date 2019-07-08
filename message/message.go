@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/zhaoguojie2010/gobft/common"
+	"github.com/coschain/gobft/common"
 )
 
 // PubKey is string representation of the public key

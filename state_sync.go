@@ -1,6 +1,6 @@
 package gobft
 
-import "github.com/zhaoguojie2010/gobft/message"
+import "github.com/coschain/gobft/message"
 
 type StateSync struct {
 	heightVotes map[int64]*HeightVoteSet

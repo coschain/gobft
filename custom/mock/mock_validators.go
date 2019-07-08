@@ -6,8 +6,8 @@ package mock
 
 import (
 	gomock "github.com/golang/mock/gomock"
-	custom "github.com/zhaoguojie2010/gobft/custom"
-	message "github.com/zhaoguojie2010/gobft/message"
+	custom "github.com/coschain/gobft/custom"
+	message "github.com/coschain/gobft/message"
 	reflect "reflect"
 )
 
