@@ -105,7 +105,8 @@ func (t *timeoutTicker) timeoutRoutine() {
 				if newti.Round < ti.Round {
 					continue
 				} else if newti.Round == ti.Round {
-					if ti.Step > 0 && newti.Step <= ti.Step {
+					if ti.Step > 0 && (newti.Step < ti.Step ||
+						newti.Step == ti.Step && newti.Step != RoundStepPrecommitFetch && newti.Step != RoundStepPrevoteFetch) {
 						continue
 					}
 				}
