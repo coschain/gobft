@@ -138,14 +138,14 @@ func (c *Core) updateToAppState(appState *message.AppState) {
 	}
 
 	if c.CommitRound > -1 && 0 < c.Height && c.Height != appState.LastHeight {
-		common.PanicSanity(fmt.Sprintf("updateToState() expected state height of %v but found %v",
-			c.Height, appState.LastHeight))
+		common.PanicSanity(fmt.Sprintf("updateToState() expected state height of %v but found %v. CORE %s",
+			c.Height, appState.LastHeight, c.name))
 	}
 
 	var lastPrecommits *VoteSet = nil
 	if c.CommitRound > -1 && c.Votes != nil {
 		if !c.Votes.Precommits(c.CommitRound).HasTwoThirdsMajority() {
-			common.PanicSanity("updateToState(state) called but last Precommit round didn't have +2/3")
+			common.PanicSanity("updateToState(state) called but last Precommit round didn't have +2/3. CORE  " + c.name)
 		}
 		lastPrecommits = c.Votes.Precommits(c.CommitRound)
 	}
