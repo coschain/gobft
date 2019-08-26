@@ -7,10 +7,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/coschain/gobft/common"
 	"github.com/coschain/gobft/custom"
 	"github.com/coschain/gobft/message"
+	"github.com/sirupsen/logrus"
 )
 
 type Core struct {
@@ -307,6 +307,7 @@ func (c *Core) handleFetch(msg *message.FetchVotesReq, p custom.IPeer) {
 	}
 	if rsp != nil {
 		c.validators.Sign(rsp)
+		c.log.Debug("sending FetchVotesRsp", rsp)
 		c.validators.CustomValidators.Send(rsp, p)
 	}
 }
