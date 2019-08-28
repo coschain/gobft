@@ -1,7 +1,6 @@
 package gobft
 
 import (
-	"github.com/ontio/ontology/common/log"
 	"sync"
 
 	"github.com/coschain/gobft/custom"
@@ -36,7 +35,6 @@ func (v *Validators) GetSelfPubKey() message.PubKey {
 func (v *Validators) VerifySignature(msg message.ConsensusMessage) bool {
 	val := v.CustomValidators.GetValidator(msg.GetSigner())
 	if val == nil {
-		log.Errorf("ConsensusMessage %s signed by a invalid validator", msg.String())
 		return false
 	}
 	return val.VerifySig(msg.Digest(), msg.GetSignature())
