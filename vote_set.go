@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/coschain/gobft/common"
 	"github.com/coschain/gobft/message"
@@ -323,6 +324,7 @@ func (voteSet *VoteSet) MakeFetchVotesReq() *message.FetchVotesReq {
 		Height: voteSet.height,
 		Round:  voteSet.round,
 		Voters: voters,
+		Time: time.Now(),
 	}
 }
 
@@ -346,6 +348,7 @@ func (voteSet *VoteSet) MakeFetchVotesRsp(req *message.FetchVotesReq) *message.F
 		Height: voteSet.height,
 		Round: voteSet.round,
 		MissingVotes: votes,
+		Time: time.Now(),
 	}
 }
 

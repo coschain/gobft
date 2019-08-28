@@ -326,8 +326,9 @@ type FetchVotesReq struct {
 	// Invoker indicates who wants the votes
 	Invoker PubKey `json:"invoker"`
 	// Voters indicates the validators from whom @Invoker currently receive vote
-	Voters    []PubKey `json:"voters"`
-	Signature []byte   `json:"signature"`
+	Voters    []PubKey  `json:"voters"`
+	Time      time.Time `json:"time"`
+	Signature []byte    `json:"signature"`
 }
 
 func (fvr *FetchVotesReq) SetSigner(key PubKey) {
@@ -355,6 +356,7 @@ func (fvr *FetchVotesReq) Digest() []byte {
 	for i := range fvr.Voters {
 		binary.Write(buf, binary.BigEndian, fvr.Voters[i])
 	}
+	binary.Write(buf, binary.BigEndian, fvr.Time)
 	h := sha256.Sum256(buf.Bytes())
 	return h[:]
 }
@@ -384,23 +386,25 @@ func (fvr *FetchVotesReq) ValidateBasic() error {
 }
 
 func (fvr *FetchVotesReq) String() string {
-	return fmt.Sprintf("FetchVotesReq{%v/%d/%02d/%v %d @ %v}",
+	return fmt.Sprintf("FetchVotesReq{%v/%d/%02d/%v %d %v %v}",
 		fvr.Type,
 		fvr.Height,
 		fvr.Round,
 		fvr.Invoker,
 		len(fvr.Voters),
 		common.Fingerprint(fvr.Signature),
+		fvr.Time,
 	)
 }
 
 type FetchVotesRsp struct {
-	Type         VoteType `json:"type"`
-	Height       int64    `json:"height"`
-	Round        int      `json:"round"`
-	Responser    PubKey   `json:"responser"`
-	MissingVotes []*Vote  `json:"missing_votes"`
-	Signature    []byte   `json:"signature"`
+	Type         VoteType  `json:"type"`
+	Height       int64     `json:"height"`
+	Round        int       `json:"round"`
+	Responser    PubKey    `json:"responser"`
+	MissingVotes []*Vote   `json:"missing_votes"`
+	Time         time.Time `json:"time"`
+	Signature    []byte    `json:"signature"`
 }
 
 func (fvr *FetchVotesRsp) SetSigner(key PubKey) {
@@ -428,6 +432,7 @@ func (fvr *FetchVotesRsp) Digest() []byte {
 	for i := range fvr.MissingVotes {
 		binary.Write(buf, binary.BigEndian, fvr.MissingVotes[i].Digest())
 	}
+	binary.Write(buf, binary.BigEndian, fvr.Time)
 	h := sha256.Sum256(buf.Bytes())
 	return h[:]
 }
@@ -457,12 +462,13 @@ func (fvr *FetchVotesRsp) ValidateBasic() error {
 }
 
 func (fvr *FetchVotesRsp) String() string {
-	return fmt.Sprintf("FetchVotesRsp{%v/%d/%02d/%v %d @ %v}",
+	return fmt.Sprintf("FetchVotesRsp{%v/%d/%02d/%v %d %v %v}",
 		fvr.Type,
 		fvr.Height,
 		fvr.Round,
 		fvr.Responser,
 		len(fvr.MissingVotes),
 		common.Fingerprint(fvr.Signature),
+		fvr.Time,
 	)
 }
