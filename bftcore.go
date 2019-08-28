@@ -137,7 +137,8 @@ func (c *Core) updateToAppState(appState *message.AppState) {
 		return
 	}
 
-	if c.CommitRound > -1 && 0 < c.Height && c.Height != appState.LastHeight {
+	if c.CommitRound > -1 && 0 < c.Height && c.Height > appState.LastHeight {
+		// appState height might proceed when gobft routine is stopped
 		common.PanicSanity(fmt.Sprintf("updateToState() expected state height of %v but found %v. CORE %s",
 			c.Height, appState.LastHeight, c.name))
 	}
