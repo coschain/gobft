@@ -33,6 +33,7 @@ type Core struct {
 	log    *logrus.Entry
 
 	sync.RWMutex
+	sync.WaitGroup
 
 	// for test only
 	byzantinePrevote *message.ProposedData
@@ -78,6 +79,7 @@ func (c *Core) Start() error {
 	c.Votes = nil
 	c.updateToAppState(appState)
 
+	c.Add(1)
 	go c.receiveRoutine()
 	c.StartTime = time.Now().Add(time.Second)
 	c.scheduleRound0(c.GetRoundState())
@@ -88,6 +90,7 @@ func (c *Core) Start() error {
 func (c *Core) Stop() error {
 	c.timeoutTicker.Stop()
 	close(c.done)
+	c.Wait()
 	return nil
 }
 
@@ -200,13 +203,14 @@ func (c *Core) receiveRoutine() {
 		}()
 	*/
 
+	defer c.Done()
 	for {
 		rs := c.RoundState
 		var mi msgInfo
 
 		select {
 		case <-c.done:
-			return
+			break
 		case mi = <-c.msgQueue:
 			c.handleMsg(mi)
 		case ti := <-c.timeoutTicker.Chan(): // tockChan:
