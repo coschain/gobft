@@ -210,7 +210,7 @@ func (c *Core) receiveRoutine() {
 
 		select {
 		case <-c.done:
-			break
+			return
 		case mi = <-c.msgQueue:
 			c.handleMsg(mi)
 		case ti := <-c.timeoutTicker.Chan(): // tockChan:
