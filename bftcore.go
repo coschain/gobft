@@ -80,6 +80,7 @@ func (c *Core) Start() error {
 	c.updateToAppState(appState)
 
 	c.Add(1)
+	c.log.Info("bftCore Add 1")
 	go c.receiveRoutine()
 	c.StartTime = time.Now().Add(time.Second)
 	c.scheduleRound0(c.GetRoundState())
@@ -89,8 +90,11 @@ func (c *Core) Start() error {
 
 func (c *Core) Stop() error {
 	c.timeoutTicker.Stop()
+	c.log.Info("bftCore close done chan")
 	close(c.done)
+	c.log.Info("bftCore wait recvRoutine")
 	c.Wait()
+	c.log.Info("bftCore stopped")
 	return nil
 }
 
@@ -210,13 +214,17 @@ func (c *Core) receiveRoutine() {
 
 		select {
 		case <-c.done:
+			c.Info("recvRoutine: done")
 			return
 		case mi = <-c.msgQueue:
+			c.Info("recvRoutine: msg")
 			c.handleMsg(mi)
 		case ti := <-c.timeoutTicker.Chan(): // tockChan:
+			c.Info("recvRoutine: timeoutTicker")
 			c.handleTimeout(ti, rs)
 		}
 	}
+	c.Info("recvRoutine loop exited")
 }
 
 func (c *Core) handleMsg(mi msgInfo) {
