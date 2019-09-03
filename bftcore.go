@@ -70,6 +70,7 @@ func (c *Core) SetName(n string) {
 
 func (c *Core) Start() error {
 	c.done = make(chan struct{})
+	c.log.Infof("bftcore.Start(), c.done=%v", c.done)
 	c.timeoutTicker = NewTimeoutTicker(c)
 
 	if err := c.timeoutTicker.Start(); err != nil {
@@ -90,7 +91,7 @@ func (c *Core) Start() error {
 
 func (c *Core) Stop() error {
 	c.timeoutTicker.Stop()
-	c.log.Info("bftCore close done chan")
+	c.log.Infof("bftCore close done chan=%v", c.done)
 	close(c.done)
 	c.log.Info("bftCore wait recvRoutine")
 	c.Wait()
@@ -206,7 +207,7 @@ func (c *Core) receiveRoutine() {
 			}
 		}()
 	*/
-
+	c.log.Infof("recvRoutine started. done chan=%v", c.done)
 	defer c.Done()
 	for {
 		rs := c.RoundState
