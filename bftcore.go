@@ -214,17 +214,17 @@ func (c *Core) receiveRoutine() {
 
 		select {
 		case <-c.done:
-			c.Info("recvRoutine: done")
+			c.log.Info("recvRoutine: done")
 			return
 		case mi = <-c.msgQueue:
-			c.Info("recvRoutine: msg")
+			c.log.Info("recvRoutine: msg")
 			c.handleMsg(mi)
 		case ti := <-c.timeoutTicker.Chan(): // tockChan:
-			c.Info("recvRoutine: timeoutTicker")
+			c.log.Info("recvRoutine: timeoutTicker")
 			c.handleTimeout(ti, rs)
 		}
 	}
-	c.Info("recvRoutine loop exited")
+	c.log.Info("recvRoutine loop exited")
 }
 
 func (c *Core) handleMsg(mi msgInfo) {
