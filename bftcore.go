@@ -128,11 +128,11 @@ func (c *Core) GetLastCommit() *message.Commit {
 
 // RecvMsg accepts a ConsensusMessage and delivers it to receiveRoutine
 func (c *Core) RecvMsg(msg message.ConsensusMessage, p custom.IPeer) {
-	if err := msg.ValidateBasic(); err != nil {
-		c.log.Error(err)
-		return
-	}
 	if atomic.LoadInt32(&c.started) == 1 {
+		if err := msg.ValidateBasic(); err != nil {
+			c.log.Error(err)
+			return
+		}
 		c.sendInternalMessage(msgInfo{msg, p})
 	}
 
