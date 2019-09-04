@@ -90,7 +90,7 @@ func (c *Core) Start() error {
 	c.Add(1)
 	go c.receiveRoutine()
 	c.StartTime = time.Now().Add(time.Second)
-	c.scheduleRound0(c.GetRoundState())
+	c.scheduleRound0(c.getRoundState())
 	atomic.StoreInt32(&c.started, 1)
 	return nil
 }
@@ -111,11 +111,9 @@ func (c *Core) Stop() error {
 	return nil
 }
 
-// GetRoundState returns a shallow copy of the internal consensus state.
-func (c *Core) GetRoundState() *RoundState {
-	c.RLock()
+// getRoundState returns a shallow copy of the internal consensus state.
+func (c *Core) getRoundState() *RoundState {
 	rs := c.RoundState // copy
-	c.RUnlock()
 	return &rs
 }
 
