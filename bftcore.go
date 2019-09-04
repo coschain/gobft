@@ -1,6 +1,7 @@
 package gobft
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"sync"
@@ -69,8 +70,14 @@ func (c *Core) SetName(n string) {
 }
 
 func (c *Core) Start() error {
+	c.Lock()
+	defer c.Unlock()
+
+	if atomic.LoadInt32(&c.started) == 1 {
+		return errors.New("gobft already started")
+	}
+
 	c.done = make(chan struct{})
-	c.log.Infof("bftcore.Start(), c.done=%v", c.done)
 	c.timeoutTicker = NewTimeoutTicker(c)
 
 	if err := c.timeoutTicker.Start(); err != nil {
@@ -81,7 +88,6 @@ func (c *Core) Start() error {
 	c.updateToAppState(appState)
 
 	c.Add(1)
-	c.log.Info("bftCore Add 1")
 	go c.receiveRoutine()
 	c.StartTime = time.Now().Add(time.Second)
 	c.scheduleRound0(c.GetRoundState())
@@ -90,12 +96,18 @@ func (c *Core) Start() error {
 }
 
 func (c *Core) Stop() error {
+	c.Lock()
+	defer c.Unlock()
+
+	if atomic.LoadInt32(&c.started) == 0 {
+		return errors.New("gobft already stopped")
+	}
+
 	c.timeoutTicker.Stop()
-	c.log.Infof("bftCore close done chan=%v", c.done)
 	close(c.done)
-	c.log.Info("bftCore wait recvRoutine")
 	c.Wait()
 	c.log.Info("bftCore stopped")
+	atomic.StoreInt32(&c.started, 0)
 	return nil
 }
 
