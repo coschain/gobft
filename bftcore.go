@@ -27,6 +27,8 @@ type Core struct {
 	msgQueue      chan msgInfo
 	timeoutTicker TimeoutTicker
 	started       int32
+	inStart       int32
+	inStop        int32
 	done          chan struct{}
 	inFetch       bool
 
@@ -70,8 +72,10 @@ func (c *Core) SetName(n string) {
 }
 
 func (c *Core) Start() error {
-	c.Lock()
-	defer c.Unlock()
+	if !atomic.CompareAndSwapInt32(&c.inStart, 0, 1) {
+		return errors.New("gobft in start")
+	}
+	defer atomic.StoreInt32(&c.inStart, 0)
 
 	if atomic.LoadInt32(&c.started) == 1 {
 		return errors.New("gobft already started")
@@ -90,14 +94,16 @@ func (c *Core) Start() error {
 	c.Add(1)
 	go c.receiveRoutine()
 	c.StartTime = time.Now().Add(time.Second)
-	c.scheduleRound0(c.getRoundState())
+	c.scheduleRound0(c.GetRoundState())
 	atomic.StoreInt32(&c.started, 1)
 	return nil
 }
 
 func (c *Core) Stop() error {
-	c.Lock()
-	defer c.Unlock()
+	if !atomic.CompareAndSwapInt32(&c.inStop, 0, 1) {
+		return errors.New("gobft in stop")
+	}
+	defer atomic.StoreInt32(&c.inStop, 0)
 
 	if atomic.LoadInt32(&c.started) == 0 {
 		return errors.New("gobft already stopped")
@@ -111,9 +117,11 @@ func (c *Core) Stop() error {
 	return nil
 }
 
-// getRoundState returns a shallow copy of the internal consensus state.
-func (c *Core) getRoundState() *RoundState {
+// GetRoundState returns a shallow copy of the internal consensus state.
+func (c *Core) GetRoundState() *RoundState {
+	c.RLock()
 	rs := c.RoundState // copy
+	c.RUnlock()
 	return &rs
 }
 
@@ -197,26 +205,6 @@ func (c *Core) updateToAppState(appState *message.AppState) {
 // Updates (state transitions) happen on timeouts, complete proposals, and 2/3 majorities.
 // Core must be locked before any internal state is updated.
 func (c *Core) receiveRoutine() {
-	/*
-		onExit := func(c *Core) {
-			close(c.done)
-		}
-
-		defer func() {
-			if r := recover(); r != nil {
-				c.log.Error("CONSENSUS FAILURE!!!", " err ", r, " stack ", string(debug.Stack()))
-				// stop gracefully
-				//
-				// NOTE: We most probably shouldn't be running any further when there is
-				// some unexpected panic. Some unknown error happened, and so we don't
-				// know if that will result in the validator signing an invalid thing. It
-				// might be worthwhile to explore a mechanism for manual resuming via
-				// some console or secure RPC system, but for now, halting the chain upon
-				// unexpected consensus bugs sounds like the better option.
-				onExit(c)
-			}
-		}()
-	*/
 	c.log.Infof("recvRoutine started. done chan=%v", c.done)
 	defer c.Done()
 	for {
