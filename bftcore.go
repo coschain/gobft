@@ -27,8 +27,7 @@ type Core struct {
 	msgQueue      chan msgInfo
 	timeoutTicker TimeoutTicker
 	started       int32
-	inStart       int32
-	inStop        int32
+	inStartOrStop       int32
 	done          chan struct{}
 	inFetch       bool
 
@@ -72,10 +71,10 @@ func (c *Core) SetName(n string) {
 }
 
 func (c *Core) Start() error {
-	if !atomic.CompareAndSwapInt32(&c.inStart, 0, 1) {
-		return errors.New("gobft in start")
+	if !atomic.CompareAndSwapInt32(&c.inStartOrStop, 0, 1) {
+		return errors.New("gobft is in the process of start or stop")
 	}
-	defer atomic.StoreInt32(&c.inStart, 0)
+	defer atomic.StoreInt32(&c.inStartOrStop, 0)
 
 	if atomic.LoadInt32(&c.started) == 1 {
 		return errors.New("gobft already started")
@@ -100,10 +99,10 @@ func (c *Core) Start() error {
 }
 
 func (c *Core) Stop() error {
-	if !atomic.CompareAndSwapInt32(&c.inStop, 0, 1) {
-		return errors.New("gobft in stop")
+	if !atomic.CompareAndSwapInt32(&c.inStartOrStop, 0, 1) {
+		return errors.New("gobft is in the process of start or stop")
 	}
-	defer atomic.StoreInt32(&c.inStop, 0)
+	defer atomic.StoreInt32(&c.inStartOrStop, 0)
 
 	if atomic.LoadInt32(&c.started) == 0 {
 		return errors.New("gobft already stopped")
