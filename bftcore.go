@@ -132,15 +132,16 @@ func (c *Core) GetLastCommit() *message.Commit {
 }
 
 // RecvMsg accepts a ConsensusMessage and delivers it to receiveRoutine
-func (c *Core) RecvMsg(msg message.ConsensusMessage, p custom.IPeer) {
+func (c *Core) RecvMsg(msg message.ConsensusMessage, p custom.IPeer) error {
 	if atomic.LoadInt32(&c.started) == 1 {
 		if err := msg.ValidateBasic(); err != nil {
 			c.log.Error(err)
-			return
+			return err
 		}
 		c.sendInternalMessage(msgInfo{msg, p})
+	} else {
+		errors.New("gobft is not running")
 	}
-
 }
 
 // enterNewRound(height, 0) at c.StartTime.
@@ -286,9 +287,6 @@ func (c *Core) handleMsg(mi msgInfo) {
 }
 
 func (c *Core) handleFetch(msg *message.FetchVotesReq, p custom.IPeer) {
-	if !c.inFetch {
-		return
-	}
 	c.log.Debug("handle FetchVotesReq: ", msg)
 	if err := msg.ValidateBasic(); err != nil {
 		c.log.Error(err)
