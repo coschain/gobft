@@ -140,8 +140,9 @@ func (c *Core) RecvMsg(msg message.ConsensusMessage, p custom.IPeer) error {
 		}
 		c.sendInternalMessage(msgInfo{msg, p})
 	} else {
-		errors.New("gobft is not running")
+		return errors.New("gobft is not running")
 	}
+	return nil
 }
 
 // enterNewRound(height, 0) at c.StartTime.
