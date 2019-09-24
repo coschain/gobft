@@ -265,13 +265,14 @@ func (commit *Commit) IsCommit() bool {
 // Does not actually check the cryptographic signatures.
 func (commit *Commit) ValidateBasic() error {
 	if commit.ProposedData.IsNil() {
-		return errors.New("Commit cannot be for nil block")
+		return errors.New("commit cannot be for nil block")
 	}
 	if len(commit.Precommits) == 0 {
-		return errors.New("No precommits in commit")
+		return errors.New("no precommits in commit")
 	}
 	height, round := commit.Height(), commit.Round()
 
+	cache := make(map[PubKey]bool)
 	// Validate the precommits.
 	for _, precommit := range commit.Precommits {
 		// It's OK for precommits to be missing.
@@ -280,30 +281,36 @@ func (commit *Commit) ValidateBasic() error {
 		}
 		// Ensure that all votes are precommits.
 		if precommit.Type != PrecommitType {
-			return fmt.Errorf("Invalid commit vote. Expected precommit, got %v",
+			return fmt.Errorf("invalid commit vote. Expected precommit, got %v",
 				precommit.Type)
 		}
 		// Ensure that all heights are the same.
 		if precommit.Height != height {
-			return fmt.Errorf("Invalid commit precommit height. Expected %v, got %v",
+			return fmt.Errorf("invalid commit precommit height. Expected %v, got %v",
 				height, precommit.Height)
 		}
 		// Ensure that all rounds are the same.
 		if precommit.Round != round {
-			return fmt.Errorf("Invalid commit precommit round. Expected %v, got %v",
+			return fmt.Errorf("invalid commit precommit round. Expected %v, got %v",
 				round, precommit.Round)
 		}
 		if precommit.Prev != commit.Prev {
-			return errors.New("Invalid Prev of precommit in Commit")
+			return errors.New("invalid Prev of precommit in Commit")
+		}
+
+		if _, exist := cache[precommit.Address]; exist {
+			return fmt.Errorf("duplicated precommits in Commit")
+		} else {
+			cache[precommit.Address] = true
 		}
 	}
 
 	if commit.Address == "" {
-		return errors.New("Missing commit address")
+		return errors.New("missing commit address")
 	}
 
 	if len(commit.Signature) == 0 {
-		return errors.New("Missing commit signature")
+		return errors.New("missing commit signature")
 	}
 	return nil
 }
