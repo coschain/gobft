@@ -27,9 +27,12 @@ type Core struct {
 	msgQueue      chan msgInfo
 	timeoutTicker TimeoutTicker
 	started       int32
-	inStartOrStop       int32
+	inStartOrStop int32
 	done          chan struct{}
 	inFetch       bool
+
+	msgCnt         int64
+	msgProcessTime time.Duration
 
 	extLog *logrus.Logger
 	log    *logrus.Entry
@@ -206,7 +209,6 @@ func (c *Core) updateToAppState(appState *message.AppState) {
 // Updates (state transitions) happen on timeouts, complete proposals, and 2/3 majorities.
 // Core must be locked before any internal state is updated.
 func (c *Core) receiveRoutine() {
-	c.log.Infof("recvRoutine started. done chan=%v", c.done)
 	defer c.Done()
 	for {
 		rs := c.RoundState
@@ -214,17 +216,21 @@ func (c *Core) receiveRoutine() {
 
 		select {
 		case <-c.done:
-			c.log.Info("recvRoutine: done")
 			return
 		case mi = <-c.msgQueue:
-			c.log.Info("recvRoutine: msg")
+			startTime := time.Now()
 			c.handleMsg(mi)
+			elapsed := time.Since(startTime)
+			c.msgProcessTime += elapsed
+			c.msgCnt++
+			if c.msgCnt % 100 == 0 {
+				c.log.Infof("average time to process a consensus msg: %d ms",
+					c.msgProcessTime.Nanoseconds()/1e6/c.msgCnt)
+			}
 		case ti := <-c.timeoutTicker.Chan(): // tockChan:
-			c.log.Info("recvRoutine: timeoutTicker")
 			c.handleTimeout(ti, rs)
 		}
 	}
-	c.log.Info("recvRoutine loop exited")
 }
 
 func (c *Core) handleMsg(mi msgInfo) {
