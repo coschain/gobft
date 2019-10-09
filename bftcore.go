@@ -548,12 +548,8 @@ func (c *Core) sendInternalMessage(mi msgInfo) {
 	case c.msgQueue <- mi:
 		c.log.Debugf("recv %v", mi.Msg)
 	default:
-		// NOTE: using the go-routine means our votes can
-		// be processed out of order.
-		// TODO: use CList here for strict determinism and
-		// attempt push to internalMsgQueue in receiveRoutine
-		c.log.Info("Internal msg queue is full. Using a go-routine")
-		go func() { c.msgQueue <- mi }()
+		c.log.Info("Internal msg queue is full. Drop it")
+		return
 	}
 }
 
