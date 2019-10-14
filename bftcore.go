@@ -153,6 +153,9 @@ func (c *Core) scheduleRound0(rs *RoundState) {
 	c.log.Info("scheduleRound0", " now ", common.Now(), " startTime ", c.StartTime,
 		" (", rs.Height, "/", 0, "/", RoundStepNewHeight, ")")
 	sleepDuration := rs.StartTime.Sub(common.Now()) // nolint: gotype, gosimple
+	if sleepDuration < 0 {
+		sleepDuration = 0
+	}
 	c.scheduleTimeout(sleepDuration, rs.Height, 0, RoundStepNewHeight)
 }
 
