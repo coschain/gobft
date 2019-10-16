@@ -298,6 +298,10 @@ func (commit *Commit) ValidateBasic() error {
 			return errors.New("invalid Prev of precommit in Commit")
 		}
 
+		if precommit.Proposed != commit.ProposedData {
+			return errors.New("invalid Proposed of precommit in Commit")
+		}
+
 		if _, exist := cache[precommit.Address]; exist {
 			return fmt.Errorf("duplicated precommits in Commit")
 		} else {
