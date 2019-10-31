@@ -12,15 +12,14 @@ var (
 	ErrVoteInvalidBlockHash          = errors.New("Invalid block hash")
 	ErrVoteNonDeterministicSignature = errors.New("Non-deterministic signature")
 	ErrVoteNil                       = errors.New("Nil vote")
-	ErrVoteMismatchedBase			 = errors.New("Invalid base")
-)
+	ErrVoteMismatchedBase            = errors.New("Invalid base")
+	ErrVoteHeightMismatch            = errors.New("Error vote height mismatch")
+	ErrVoteInvalidRound              = errors.New("Invalid round")
 
-var (
 	ErrInvalidProposer          = errors.New("Error invalid proposer")
 	ErrInvalidProposalSignature = errors.New("Error invalid proposal signature")
 	ErrInvalidProposalPOLRound  = errors.New("Error invalid proposal POL round")
 	ErrAddingVote               = errors.New("Error adding vote")
-	ErrVoteHeightMismatch       = errors.New("Error vote height mismatch")
 )
 
 type ErrVoteConflictingVotes struct {

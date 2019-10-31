@@ -7,6 +7,7 @@ import (
 )
 
 var FetchInterval  = time.Second
+const watermark = 300
 
 type Config struct {
 	TimeoutPropose        time.Duration `mapstructure:"timeout_propose"`

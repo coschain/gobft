@@ -251,24 +251,7 @@ func (c *Core) handleMsg(mi msgInfo) {
 			return
 		}
 
-		_, err = c.tryAddVote(msg)
-
-		if err == ErrAddingVote {
-			// TODO: punish peer
-			// We probably don't want to stop the peer here. The vote does not
-			// necessarily comes from a malicious peer but can be just broadcasted by
-			// a typical peer.
-			// https://github.com/tendermint/tendermint/issues/1281
-		}
-
-		// NOTE: the vote is broadcast to peers by the reactor listening
-		// for vote events
-
-		// TODO: If rs.Height == vote.Height && rs.Round < vote.Round,
-		// the peer is sending us CatchupCommit precommits.
-		// We could make note of this and help filter in broadcastHasVoteMessage().
-	// case *message.FetchVotesReq:
-
+		c.tryAddVote(msg)
 	case *message.Commit:
 		//c.log.Debug("handle Commit: ", msg)
 		if err := msg.ValidateBasic(); err != nil {
@@ -756,25 +739,22 @@ func (c *Core) doCommit(data message.ProposedData) {
 }
 
 // Attempt to add the vote. if its a duplicate signature, dupeout the validator
-func (c *Core) tryAddVote(vote *message.Vote) (bool, error) {
-	added, err := c.addVote(vote)
+func (c *Core) tryAddVote(vote *message.Vote) {
+	_, err := c.addVote(vote)
 	if err != nil {
 		// If the vote height is off, we'll just ignore it,
 		// But if it's a conflicting sig, add it to the c.evpool.
 		// If it's otherwise invalid, punish peer.
 		if err == ErrVoteHeightMismatch {
-			return added, err
+			return
 		} else if _, ok := err.(*ErrVoteConflictingVotes); ok {
 			// TODO: catch conflict votes
-			return added, err
 		} else {
 			// Probably an invalid signature / Bad peer.
 			// Seems this can also err sometimes with "Unexpected step" - perhaps not from a bad peer ?
 			c.log.Warn("Error attempting to add vote", " err ", err)
-			return added, ErrAddingVote
 		}
 	}
-	return added, nil
 }
 
 func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
@@ -835,6 +815,9 @@ func (c *Core) addVote(vote *message.Vote) (added bool, err error) {
 
 	// TODO: add watermark for round
 	height := c.Height
+	if c.Round + watermark < vote.Round || vote.Round < 0 {
+		return false, ErrVoteInvalidRound
+	}
 	added, err = c.Votes.AddVote(vote)
 	if !added {
 		if err != nil {
